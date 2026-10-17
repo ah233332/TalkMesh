@@ -1,12 +1,17 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/ah233332/TalkMesh/login"
+)
 
 func main() {
 	var (
-		key int
-
-		pool bool = false
+		key     int
+		userId  int
+		userPwd string
+		loop    bool = false
 	)
 	for {
 		fmt.Println("---------------用户通讯系统--------------")
@@ -23,12 +28,27 @@ func main() {
 			fmt.Println("注册")
 		case 3:
 			fmt.Println("退出")
-			pool = true
+			loop = true
 		default:
 			fmt.Println("输入错误")
 		}
 
-		if pool {
+		if key == 1 {
+			fmt.Println("请输入用户名：")
+			fmt.Scan(&userId)
+			fmt.Println("请输入密码：")
+			fmt.Scan(&userPwd)
+			err := login.Login(userId, userPwd)
+			if err != nil {
+				fmt.Println("登录失败")
+			} else {
+				fmt.Println("登录成功")
+			}
+		} else if key == 2 {
+			fmt.Println("进行用户注册")
+		}
+
+		if loop {
 			fmt.Println("退出成功！")
 			break
 		}
