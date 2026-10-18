@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ah233332/TalkMesh/common/message"
 )
@@ -29,7 +30,7 @@ func login(userId int, userPwd string) (err error) {
 	loginMex.UserPwd = userPwd
 
 	//将LoginMex结构体序列化之后再填入mes中
-	data, err := json.Marshal(mes)
+	data, err := json.Marshal(loginMex)
 	if err != nil {
 		fmt.Println("Marshal err=", err)
 		return
@@ -61,7 +62,16 @@ func login(userId int, userPwd string) (err error) {
 		fmt.Println("长度发送失败err=", err)
 		return
 	}
-	fmt.Println("客户端发送信息长度=", len(data))
 
-	return err
+	//5.发送消息本身
+	_, err = conn.Write(data)
+	if err != nil {
+		fmt.Println("conn.write data err=", err)
+		return
+	}
+
+	//6.处理服务器端返回的消息
+	time.Sleep(20 * time.Second)
+
+	return
 }
