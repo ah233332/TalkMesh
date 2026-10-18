@@ -1,66 +1,21 @@
 package main
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 
 	"github.com/ah233332/TalkMesh/common/message"
+	"github.com/ah233332/TalkMesh/common/utils"
 )
-
-// readPkg 从连接中读取一个完整的数据包。
-// 它先读取 4 字节大端长度头，再按该长度读取消息体，
-// 最后将 JSON 格式的消息体反序列化为 message.Message。
-func readPkg(conn net.Conn) (mes message.Message, err error) {
-	buf := make([]byte, 8096)
-	fmt.Println("读取客户端发送的数据...")
-	_, err = conn.Read(buf[:4])
-	if err != nil {
-		fmt.Println("conn read err=", err)
-		return
-	}
-
-	//把buf[:4]转成一个uint32类型
-	var pkgLen uint32
-	pkgLen = binary.BigEndian.Uint32(buf[:4])
-
-	//根据pkgLen读取消息内容
-	n, err := conn.Read(buf[:pkgLen]) //从conn读取pkgLen个字节到buf里面
-	if n != int(pkgLen) || err != nil {
-		fmt.Println("conn read err=", err)
-		return
-	}
-
-	//buf  反序列化成 Message类型
-	err = json.Unmarshal(buf[:pkgLen], &mes)
-	if err != nil {
-		fmt.Println("unmarshal err=", err)
-		return
-	}
-
-	return
-
-}
-
-// 将mes Data 数据反序列化给lmes
-func readData(mes message.Message) (lmes message.LoginMes, err error) {
-	err = json.Unmarshal([]byte(mes.Data), &lmes)
-	if err != nil {
-		fmt.Println("unmarshal mesData err=", err)
-		return
-	}
-	return
-}
 
 // 处理与客户端的通讯
 func ProcessTCP(conn net.Conn) {
 	defer conn.Close()
 
 	for {
-
-		mes, err := readPkg(conn)
+		mes, err := utils.ReadPkg(conn)
 		if err != nil {
 			if err == io.EOF {
 				fmt.Println("客户端退出，服务器端也退出")
@@ -69,24 +24,63 @@ func ProcessTCP(conn net.Conn) {
 			fmt.Println("readPkg err", err)
 			return
 		}
-
-		lmes, err := readData(mes)
-		if err != nil {
-			fmt.Println("readData err", err)
-			return
-		}
-
-		fmt.Printf("%v\n%v\n", mes, lmes)
+		fmt.Println(mes)
 	}
 }
 
+// 登录功能的核心代码
 func serverProcessLogin(conn net.Conn, mes *message.Message) (err error) {
-	//登录功能的核心代码
 	//1.先从mes中取出mes data,并直接反序列化成LoginMes
+	var loginmes message.LoginMes
+	err = json.Unmarshal([]byte(mes.Data), &loginmes)
+	if err != nil {
+		fmt.Println("unmarshal mesData err=", err)
+		return
+	}
+
+	//声明返回信息,并赋值
+	var loginResMes message.Message
+	loginResMes.Type = message.LoginResMesType
+
+	var loginResMesData message.LoginResMes
+
+	//测试：如果用户ID为114514 密码qwe 认为合法
+	if loginmes.UserId == 114514 && loginmes.UserPwd == "qwe" {
+		loginResMesData.Code = 200 //登录成功
+	} else {
+		loginResMesData.Code = 500 //登录失败，用户不存在
+		loginResMesData.Error = "该用户不存在，请注册再登录"
+	}
+
+	data, err := json.Marshal(loginResMesData)
+	if err != nil {
+		fmt.Println("marshal loginResMesData err=", err)
+		return
+	}
+	//data为序列化之后的loginresmesdata
+
+	loginResMes.Data = string(data)
+	//loginResMes赋值完成，准备进行序列化发送
+
+	//返回信息序列化
+	data, err = json.Marshal(loginResMes)
+	if err != nil {
+		fmt.Println("marshal loginResMes err=", err)
+		return
+	}
+	//此时data就是要发送出的内容
+
+	//发送data返回到客户端
+	err = utils.WritePkg(conn, data)
+	if err != nil {
+		fmt.Println("writePkg err=", err)
+		return
+	}
 	return
+
 }
 
-// 根据客户端发送的消息种类不同，决定调用哪个函数处理
+// 路由功能,根据客户端发送的消息种类不同，决定调用哪个函数处理
 func ServeProcessMes(conn net.Conn, mes *message.Message) (err error) {
 	switch mes.Type {
 	case message.LoginMesType:
