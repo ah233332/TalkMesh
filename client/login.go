@@ -55,6 +55,7 @@ func login(userId int, userPwd string) (err error) {
 	//bigendian littleendian 一个是大端传输，一个小端传输
 	//大端按高位在前，小端是反过来低位在前的
 	//大端网络使用，小端CPU内存本地用
+	//binary包是实现 数字 与 byte切片 之间的转化
 	binary.BigEndian.PutUint32(buf[:4], pkgLen)
 	//发送长度
 	n, err := conn.Write(buf[:4])
