@@ -20,11 +20,17 @@ func ProcessTCP(conn net.Conn) {
 			if err == io.EOF {
 				fmt.Println("客户端退出，服务器端也退出")
 				return
+			} else {
+				fmt.Println("readPkg err", err)
+				return
 			}
-			fmt.Println("readPkg err", err)
+		}
+
+		err = serverProcessLogin(conn, &mes)
+		if err != nil {
+			fmt.Println("serverProcessLogin err=", err)
 			return
 		}
-		fmt.Println(mes)
 	}
 }
 

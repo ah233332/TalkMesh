@@ -1,13 +1,12 @@
 package main
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net"
-	"time"
 
 	"github.com/ah233332/TalkMesh/common/message"
+	"github.com/ah233332/TalkMesh/common/utils"
 )
 
 func login(userId int, userPwd string) (err error) {
@@ -46,6 +45,34 @@ func login(userId int, userPwd string) (err error) {
 	}
 	//data就是要发送的信息
 
+	//4.发送数据长度与本体给对方
+	err = utils.WritePkg(conn, data)
+	if err != nil {
+		fmt.Println("login writePkg err=", err)
+		return
+	}
+
+	//5.处理服务器端返回的消息
+	resMes, err := utils.ReadPkg(conn)
+	var loginResMes message.LoginResMes
+	err = json.Unmarshal([]byte(resMes.Data), &loginResMes)
+	if err != nil {
+		fmt.Println("unmarshal err=", err)
+		return
+	}
+
+	switch loginResMes.Code {
+	case 200:
+		fmt.Println("登录成功！！！")
+	case 500:
+		fmt.Println("用户未注册")
+
+	}
+
+	return
+}
+
+/*
 	//4.在发送mes之前，先发送data字节长度，以防丢包
 	//conn.write()只能发送[]byte类型
 	//需要先把data长度信息，转成[]byte类型
@@ -70,9 +97,4 @@ func login(userId int, userPwd string) (err error) {
 		fmt.Println("conn.write data err=", err)
 		return
 	}
-
-	//6.处理服务器端返回的消息
-	time.Sleep(20 * time.Second)
-
-	return
-}
+*/

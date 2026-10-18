@@ -39,8 +39,6 @@ func main() {
 			err := login(userId, userPwd)
 			if err != nil {
 				fmt.Println("登录失败")
-			} else {
-				fmt.Println("登录成功")
 			}
 		} else if key == 2 {
 			fmt.Println("进行用户注册")
