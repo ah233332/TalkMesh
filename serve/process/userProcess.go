@@ -1,41 +1,18 @@
-package main
+package process
+
+//处理有关客户的信息功能
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 
 	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/ah233332/TalkMesh/common/utils"
 )
 
-// 处理与客户端的通讯
-func ProcessTCP(conn net.Conn) {
-	defer conn.Close()
-
-	for {
-		mes, err := utils.ReadPkg(conn)
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("客户端退出，服务器端也退出")
-				return
-			} else {
-				fmt.Println("readPkg err", err)
-				return
-			}
-		}
-
-		err = serverProcessLogin(conn, &mes)
-		if err != nil {
-			fmt.Println("serverProcessLogin err=", err)
-			return
-		}
-	}
-}
-
 // 登录功能的核心代码
-func serverProcessLogin(conn net.Conn, mes *message.Message) (err error) {
+func ServerProcessLogin(conn net.Conn, mes *message.Message) (err error) {
 	//1.先从mes中取出mes data,并直接反序列化成LoginMes
 	var loginmes message.LoginMes
 	err = json.Unmarshal([]byte(mes.Data), &loginmes)
@@ -84,37 +61,4 @@ func serverProcessLogin(conn net.Conn, mes *message.Message) (err error) {
 	}
 	return
 
-}
-
-// 路由功能,根据客户端发送的消息种类不同，决定调用哪个函数处理
-func ServeProcessMes(conn net.Conn, mes *message.Message) (err error) {
-	switch mes.Type {
-	case message.LoginMesType:
-		serverProcessLogin(conn, mes)
-	case message.RegisterMesType:
-		//处理注册
-	default:
-		fmt.Println("消息类型不存在，无法处理...")
-	}
-	return
-}
-
-func main() {
-	fmt.Println("服务器在8899端口监听....")
-	listen, err := net.Listen("tcp", "0.0.0.0:8899")
-	if err != nil {
-		fmt.Println("net.listen err=", err)
-		return
-	}
-	defer listen.Close()
-
-	for {
-		fmt.Println("等待连接中...")
-		conn, err := listen.Accept()
-		if err != nil {
-			fmt.Println("listen accept err=", err)
-		}
-
-		go ProcessTCP(conn)
-	}
 }
