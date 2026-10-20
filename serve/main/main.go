@@ -7,36 +7,8 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"net"
-
-	"github.com/ah233332/TalkMesh/common/utils"
-	"github.com/ah233332/TalkMesh/serve/process"
 )
-
-// 处理与客户端的通讯
-func processTCP(conn net.Conn) {
-	defer conn.Close()
-
-	for {
-		mes, err := utils.ReadPkg(conn)
-		if err != nil {
-			if err == io.EOF {
-				fmt.Println("客户端退出，服务器端也退出")
-				return
-			} else {
-				fmt.Println("readPkg err", err)
-				return
-			}
-		}
-
-		err = process.ServerProcessLogin(conn, &mes)
-		if err != nil {
-			fmt.Println("serverProcessLogin err=", err)
-			return
-		}
-	}
-}
 
 func main() {
 	fmt.Println("服务器在8899端口监听....")
@@ -52,8 +24,13 @@ func main() {
 		conn, err := listen.Accept()
 		if err != nil {
 			fmt.Println("listen accept err=", err)
+			continue
 		}
 
-		go processTCP(conn)
+		pr := Processor{
+			Conn: conn,
+		}
+
+		go pr.processTCP()
 	}
 }

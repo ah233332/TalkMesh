@@ -11,8 +11,12 @@ import (
 	"github.com/ah233332/TalkMesh/common/utils"
 )
 
+type UserProcess struct {
+	Conn net.Conn
+}
+
 // 登录功能的核心代码
-func ServerProcessLogin(conn net.Conn, mes *message.Message) (err error) {
+func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	//1.先从mes中取出mes data,并直接反序列化成LoginMes
 	var loginmes message.LoginMes
 	err = json.Unmarshal([]byte(mes.Data), &loginmes)
@@ -53,8 +57,11 @@ func ServerProcessLogin(conn net.Conn, mes *message.Message) (err error) {
 	}
 	//此时data就是要发送出的内容
 
+	tf := &utils.Transfer{
+		Conn: u.Conn,
+	}
 	//发送data返回到客户端
-	err = utils.WritePkg(conn, data)
+	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("writePkg err=", err)
 		return
