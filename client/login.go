@@ -45,15 +45,19 @@ func login(userId int, userPwd string) (err error) {
 	}
 	//data就是要发送的信息
 
+	tf := utils.Transfer{
+		Conn: conn,
+	}
+
 	//4.发送数据长度与本体给对方
-	err = utils.WritePkg(conn, data)
+	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("login writePkg err=", err)
 		return
 	}
 
 	//5.处理服务器端返回的消息
-	resMes, err := utils.ReadPkg(conn)
+	resMes, err := tf.ReadPkg()
 	var loginResMes message.LoginResMes
 	err = json.Unmarshal([]byte(resMes.Data), &loginResMes)
 	if err != nil {
