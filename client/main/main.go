@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+
+	"github.com/ah233332/TalkMesh/client/process"
 )
 
 func main() {
@@ -10,6 +12,7 @@ func main() {
 		userId  int
 		userPwd string
 		loop    bool = false
+		up      process.UserProcess
 	)
 	for {
 		fmt.Println("---------------用户通讯系统--------------")
@@ -21,7 +24,14 @@ func main() {
 
 		switch key {
 		case 1:
-			fmt.Println("登录")
+			fmt.Println("请输入用户名：")
+			fmt.Scan(&userId)
+			fmt.Println("请输入密码：")
+			fmt.Scan(&userPwd)
+			err := up.Login(userId, userPwd)
+			if err != nil {
+				fmt.Println("登录失败")
+			}
 		case 2:
 			fmt.Println("注册")
 		case 3:
@@ -29,19 +39,6 @@ func main() {
 			loop = true
 		default:
 			fmt.Println("输入错误")
-		}
-
-		if key == 1 {
-			fmt.Println("请输入用户名：")
-			fmt.Scan(&userId)
-			fmt.Println("请输入密码：")
-			fmt.Scan(&userPwd)
-			err := login(userId, userPwd)
-			if err != nil {
-				fmt.Println("登录失败")
-			}
-		} else if key == 2 {
-			fmt.Println("进行用户注册")
 		}
 
 		if loop {
