@@ -1,17 +1,21 @@
 # TalkMesh
 
-基于 Go 的 TCP 聊天系统学习项目。目前已经完成基础登录流程，正在逐步加入注册、在线用户和消息通信功能。
+基于 Go 的 TCP 即时通讯学习项目。目标是把一条完整的 IM 链路走通：
+连接 → 协议编解码 → 登录/注册 → 在线用户 → 群聊/私聊 → 心跳 → 离线消息。
 
-
+当前状态：**登录链路已打通**，注册、在线用户和消息通信尚未实现，Redis 只完成了依赖引入和 model 层雏形。
 
 ## 已实现
 
-- 客户端与服务端 TCP 通信
-- 4 字节长度头 + JSON 消息协议
-- 服务端为每个连接启动 goroutine
-- 根据消息类型路由到对应处理逻辑
-- 基础登录和登录结果返回
-- 简单的客户端控制台菜单
+- 客户端与服务端 TCP 长连接，服务端为每个连接启动一个 goroutine 处理
+- 自定义协议：4 字节大端长度头 + JSON 消息体，用长度头切分消息边界。读取实现尚未处理半包，见「已知问题」
+- 按 `Message.Type` 路由到对应业务处理函数，`RegisterMes` 已预留分支
+- 登录流程：客户端组装 `LoginMes` → 服务端校验 → 返回 `LoginResMes{Code, Error}`
+- 客户端按 `main` / `process` 分层，登录成功后由独立 goroutine 持续接收服务端消息
+- 登录后的控制台菜单骨架（在线列表、发消息、消息列表为占位）
+- model 层雏形：`UserDao` + `User` + 业务错误定义，使用 redigo 连接池读 `users` 哈希
+
+> 登录校验目前是写死的测试账号，接入 Redis 后删除。
 
 测试账号：
 
@@ -24,18 +28,40 @@
 
 ```text
 TalkMesh/
-├── client/              # 客户端
+├── client/
+│   ├── main/
+│   │   └── main.go          # 控制台入口与一级菜单
+│   └── process/
+│       ├── userProcess.go   # 登录：建连、发登录包、处理登录结果
+│       ├── serve.go         # 登录后菜单、持续接收服务端消息
+│       └── smsProcess.go    # 发送消息（待实现）
 ├── common/
-│   ├── message/         # 消息协议
-│   └── utils/           # TCP 数据包读写
+│   ├── message/
+│   │   └── message.go       # 协议：Message / LoginMes / LoginResMes / RegisterMes
+│   └── utils/
+│       └── utils.go         # ReadPkg / WritePkg：长度头 + JSON 的收发
 ├── serve/
-│   ├── main/            # 服务端入口和消息路由
-│   └── process/         # 登录等业务处理
+│   ├── main/
+│   │   ├── main.go          # 监听 0.0.0.0:8899，每连接一个 goroutine
+│   │   └── processor.go     # 读包 + 按消息类型路由
+│   ├── process/
+│   │   ├── userProcess.go   # 登录处理
+│   │   └── smsProcess.go    # 消息处理（待实现）
+│   └── model/
+│       ├── user.go          # User 结构体
+│       ├── error.go         # 业务错误（用户不存在 / 已存在 / 密码错误）
+│       └── userDao.go       # 基于 Redis 的用户数据访问（尚未接入登录流程）
+├── _png/                    # 客户端、服务端、交互结构图
 ├── go.mod
+├── go.sum
 └── README.md
 ```
 
+设计过程中的结构图统一保存在 `_png/` 目录
+
 ## 运行
+
+依赖：Go 1.27+
 
 先启动服务端：
 
@@ -46,7 +72,7 @@ go run ./serve/main
 再打开另一个终端启动客户端：
 
 ```bash
-go run ./client
+go run ./client/main
 ```
 
 服务端默认监听 `0.0.0.0:8899`。
@@ -56,8 +82,10 @@ go run ./client
 每条消息由长度头和 JSON 消息体组成：
 
 ```text
-4 字节长度 + JSON 数据
+4 字节大端长度 + JSON 数据
 ```
+
+外层是统一的 `Message`，`Data` 字段里再放一层业务 JSON：
 
 ```go
 type Message struct {
@@ -66,14 +94,45 @@ type Message struct {
 }
 ```
 
+一个登录包的完整样子：
+
+```json
+{"type":"LoginMes","data":"{\"userId\":114514,\"userPwd\":\"qwe\",\"userName\":\"\"}"}
+```
+
+已定义的消息类型：
+
+| 类型 | 方向 | 说明 |
+| --- | --- | --- |
+| `LoginMes` | 客户端 → 服务端 | 登录请求，`userId` / `userPwd` / `userName` |
+| `LoginResMes` | 服务端 → 客户端 | 登录结果，`code`：200 成功 / 500 用户未注册，`error` 为提示信息 |
+| `RegisterMes` | 客户端 → 服务端 | 注册请求，结构尚未定义 |
+
+## 已知问题
+
+1. `ReadPkg` 直接调用 `Conn.Read`，不保证一次读满包头/包体，遇到半包会出错，应改用 `io.ReadFull`。
+2. 登录校验写死在 `114514/qwe`，密码明文传输，后续改为 Redis 校验 + 哈希存储。
+3. 缓冲区固定 8096 字节，超过长度的包会切片越界。
+4. 没有心跳，客户端拔网线时服务端无法及时感知下线。
+5. 错误处理以 `fmt.Println` 为主，没有日志级别和统一错误返回。
+6. `UserDao` 已写好但还没有调用方，Redis 目前只是依赖。
+7. 没有单元测试。
+
 ## 开发计划
 
-- [ ] 完善 TCP 分包读取和错误处理
-- [ ] 实现用户注册
-- [ ] 接入 Redis
-- [ ] 维护在线用户列表
-- [ ] 实现一对一聊天和群聊
-- [ ] 增加心跳和重连
-- [ ] 补充测试
+- [x] TCP 连接、长度头 + JSON 协议、按类型路由
+- [x] 登录链路打通（客户端 → 服务端 → 返回结果）
+- [x] 客户端按 `main` / `process` 分层，登录后独立 goroutine 收消息
+- [x] 引入 redigo 与 `UserDao` 雏形
+- [ ] 修复分包读取：`io.ReadFull` + 包长上限校验
+- [ ] 实现注册：`RegisterMes` 结构 + Redis `hset` 写入 + 重名校验
+- [ ] 登录改为 Redis 校验，删除硬编码测试账号
+- [ ] 维护在线用户列表并支持群聊广播
+- [ ] 实现一对一聊天（按用户 ID 路由）
+- [ ] 应用层心跳与断线清理
+- [ ] 离线消息（Redis list，登录后补发）
+- [ ] 单元测试、结构化日志、连接压测
 
-本项目主要用于学习 Go 网络编程，目前还未达到生产级聊天系统的标准。
+## 说明
+
+本项目用于学习 Go 网络编程、协议设计与并发处理，尚未达到生产级聊天系统的标准。
