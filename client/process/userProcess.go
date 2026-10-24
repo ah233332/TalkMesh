@@ -48,6 +48,8 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 	}
 	//data就是要发送的信息
 
+	fmt.Println(string(data))
+
 	tf := utils.Transfer{
 		Conn: conn,
 	}
@@ -68,8 +70,7 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 		return
 	}
 
-	switch loginResMes.Code {
-	case 200:
+	if loginResMes.Code == 200 {
 		fmt.Println("登录成功！！！")
 
 		go continueProcess(conn)
@@ -77,9 +78,8 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 		for {
 			ShowMenu()
 		}
-	case 500:
-		fmt.Println("用户未注册")
-
+	} else {
+		fmt.Println(loginResMes.Error)
 	}
 
 	return
