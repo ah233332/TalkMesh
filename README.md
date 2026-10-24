@@ -3,26 +3,17 @@
 基于 Go 的 TCP 即时通讯学习项目。目标是把一条完整的 IM 链路走通：
 连接 → 协议编解码 → 登录/注册 → 在线用户 → 群聊/私聊 → 心跳 → 离线消息。
 
-当前状态：**登录链路已打通**，注册、在线用户和消息通信尚未实现，Redis 只完成了依赖引入和 model 层雏形。
+当前状态：**登录链路已打通**，服务端已通过 Redis 校验用户和密码；注册、在线用户和消息通信尚未实现。
 
 ## 已实现
 
 - 客户端与服务端 TCP 长连接，服务端为每个连接启动一个 goroutine 处理
 - 自定义协议：4 字节大端长度头 + JSON 消息体，用长度头切分消息边界。读取实现尚未处理半包，见「已知问题」
 - 按 `Message.Type` 路由到对应业务处理函数，`RegisterMes` 已预留分支
-- 登录流程：客户端组装 `LoginMes` → 服务端校验 → 返回 `LoginResMes{Code, Error}`
+- 登录流程：客户端组装 `LoginMes` → 服务端查询 Redis → 返回 `LoginResMes{Code, Error}`
 - 客户端按 `main` / `process` 分层，登录成功后由独立 goroutine 持续接收服务端消息
 - 登录后的控制台菜单骨架（在线列表、发消息、消息列表为占位）
-- model 层雏形：`UserDao` + `User` + 业务错误定义，使用 redigo 连接池读 `users` 哈希
-
-> 登录校验目前是写死的测试账号，接入 Redis 后删除。
-
-测试账号：
-
-```text
-用户 ID：114514
-密码：qwe
-```
+- 数据访问层：`UserDao` 使用 redigo 连接池读取 Redis 的 `users` 哈希，并校验用户密码
 
 ## 项目结构
 
@@ -42,7 +33,8 @@ TalkMesh/
 │       └── utils.go         # ReadPkg / WritePkg：长度头 + JSON 的收发
 ├── serve/
 │   ├── main/
-│   │   ├── main.go          # 监听 0.0.0.0:8899，每连接一个 goroutine
+│   │   ├── main.go          # 初始化数据库与 UserDao，监听 0.0.0.0:8899
+│   │   ├── redis.go         # 创建 Redis 连接池
 │   │   └── processor.go     # 读包 + 按消息类型路由
 │   ├── process/
 │   │   ├── userProcess.go   # 登录处理
@@ -50,20 +42,26 @@ TalkMesh/
 │   └── model/
 │       ├── user.go          # User 结构体
 │       ├── error.go         # 业务错误（用户不存在 / 已存在 / 密码错误）
-│       └── userDao.go       # 基于 Redis 的用户数据访问（尚未接入登录流程）
+│       └── userDao.go       # 基于 Redis 的用户数据访问与登录校验
 ├── _png/                    # 客户端、服务端、交互结构图
 ├── go.mod
 ├── go.sum
 └── README.md
 ```
 
-设计过程中的结构图统一保存在 `_png/` 目录
+设计过程中的结构图统一保存在 `_png/` 目录。
 
 ## 运行
 
-依赖：Go 1.27+
+依赖：Go 1.27+、Redis（默认地址 `127.0.0.1:6379`）。
 
-先启动服务端：
+启动服务端前，先在 Redis 的 `users` 哈希中准备用户数据，例如：
+
+```bash
+redis-cli HSET users 114514 '{"userId":114514,"userPwd":"qwe","userName":"测试用户"}'
+```
+
+然后启动服务端：
 
 ```bash
 go run ./serve/main
@@ -105,28 +103,27 @@ type Message struct {
 | 类型 | 方向 | 说明 |
 | --- | --- | --- |
 | `LoginMes` | 客户端 → 服务端 | 登录请求，`userId` / `userPwd` / `userName` |
-| `LoginResMes` | 服务端 → 客户端 | 登录结果，`code`：200 成功 / 500 用户未注册，`error` 为提示信息 |
+| `LoginResMes` | 服务端 → 客户端 | 登录结果，`code`：200 成功 / 403 密码错误 / 500 用户不存在 / 505 未知错误，`error` 为提示信息 |
 | `RegisterMes` | 客户端 → 服务端 | 注册请求，结构尚未定义 |
 
 ## 已知问题
 
 1. `ReadPkg` 直接调用 `Conn.Read`，不保证一次读满包头/包体，遇到半包会出错，应改用 `io.ReadFull`。
-2. 登录校验写死在 `114514/qwe`，密码明文传输，后续改为 Redis 校验 + 哈希存储。
+2. 密码目前明文传输并以明文存储，后续增加哈希存储与安全传输。
 3. 缓冲区固定 8096 字节，超过长度的包会切片越界。
 4. 没有心跳，客户端拔网线时服务端无法及时感知下线。
 5. 错误处理以 `fmt.Println` 为主，没有日志级别和统一错误返回。
-6. `UserDao` 已写好但还没有调用方，Redis 目前只是依赖。
-7. 没有单元测试。
+6. 没有单元测试。
 
 ## 开发计划
 
 - [x] TCP 连接、长度头 + JSON 协议、按类型路由
 - [x] 登录链路打通（客户端 → 服务端 → 返回结果）
 - [x] 客户端按 `main` / `process` 分层，登录后独立 goroutine 收消息
-- [x] 引入 redigo 与 `UserDao` 雏形
+- [x] 引入 redigo、初始化连接池并接入 `UserDao`
+- [x] 登录改为 Redis 校验
 - [ ] 修复分包读取：`io.ReadFull` + 包长上限校验
 - [ ] 实现注册：`RegisterMes` 结构 + Redis `hset` 写入 + 重名校验
-- [ ] 登录改为 Redis 校验，删除硬编码测试账号
 - [ ] 维护在线用户列表并支持群聊广播
 - [ ] 实现一对一聊天（按用户 ID 路由）
 - [ ] 应用层心跳与断线清理
