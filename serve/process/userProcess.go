@@ -9,6 +9,7 @@ import (
 
 	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/ah233332/TalkMesh/common/utils"
+	"github.com/ah233332/TalkMesh/serve/model"
 )
 
 type UserProcess struct {
@@ -32,11 +33,30 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	var loginResMesData message.LoginResMes
 
 	//测试：如果用户ID为114514 密码qwe 认为合法
-	if loginmes.UserId == 114514 && loginmes.UserPwd == "qwe" {
-		loginResMesData.Code = 200 //登录成功
+	// if loginmes.UserId == 114514 && loginmes.UserPwd == "qwe" {
+	// 	loginResMesData.Code = 200 //登录成功
+	// } else {
+	// 	loginResMesData.Code = 500 //登录失败，用户不存在
+	// 	loginResMesData.Error = "该用户不存在，请注册再登录"
+	// }
+
+	//需要到redis数据库去验证登录
+	user, err := model.MyUserDao.Login(loginmes.UserId, loginmes.UserPwd)
+
+	if err != nil {
+		if err == model.ERROR_USER_PWD {
+			loginResMesData.Code = 403 //密码错误
+			loginResMesData.Error = err.Error()
+		} else if err == model.ERROR_USER_NOTEXISTS {
+			loginResMesData.Code = 500 //用户不存在
+			loginResMesData.Error = err.Error()
+		} else {
+			loginResMesData.Code = 505 //未知错误
+			loginResMesData.Error = "未定义的错误"
+		}
 	} else {
-		loginResMesData.Code = 500 //登录失败，用户不存在
-		loginResMesData.Error = "该用户不存在，请注册再登录"
+		loginResMesData.Code = 200 //登录成功
+		fmt.Println(*user, "登录成功！！！！！！！！")
 	}
 
 	data, err := json.Marshal(loginResMesData)
