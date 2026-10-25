@@ -8,11 +8,12 @@ import (
 
 func main() {
 	var (
-		key     int
-		userId  int
-		userPwd string
-		loop    bool = false
-		up      process.UserProcess
+		key      int
+		userId   int
+		userPwd  string
+		userName string
+		loop     bool = false
+		up       process.UserProcess
 	)
 	for {
 		fmt.Println("---------------用户通讯系统--------------")
@@ -24,7 +25,7 @@ func main() {
 
 		switch key {
 		case 1:
-			fmt.Println("请输入用户名：")
+			fmt.Println("请输入用户Id：")
 			fmt.Scan(&userId)
 			fmt.Println("请输入密码：")
 			fmt.Scan(&userPwd)
@@ -33,7 +34,16 @@ func main() {
 				fmt.Println("登录失败")
 			}
 		case 2:
-			fmt.Println("注册")
+			fmt.Println("请输入用户Id：")
+			fmt.Scan(&userId)
+			fmt.Println("请输入密码：")
+			fmt.Scan(&userPwd)
+			fmt.Println("请输入用户名：")
+			fmt.Scan(&userName)
+			err := up.Register(userId, userPwd, userName)
+			if err != nil {
+				fmt.Println("登录失败")
+			}
 		case 3:
 			fmt.Println("退出")
 			loop = true
