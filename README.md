@@ -3,19 +3,22 @@
 基于 Go 的 TCP 即时通讯学习项目。目标是把一条完整的 IM 链路走通：
 连接 → 协议编解码 → 登录/注册 → 在线用户 → 群聊/私聊 → 心跳 → 离线消息。
 
-当前状态：**登录链路已打通**，服务端已通过 Redis 校验用户和密码；注册消息结构和客户端注册请求已实现，服务端注册处理尚未完成。
+当前状态：**登录、注册链路均已打通**。客户端可以注册新用户、再用注册的 ID 登录；服务端通过 Redis 完成用户查重与写入，登录后进入控制台菜单骨架（在线列表、发消息等仍为占位）。
 
 ## 已实现
 
 - 客户端与服务端 TCP 长连接，服务端为每个连接启动一个 goroutine 处理
 - 自定义协议：4 字节大端长度头 + JSON 消息体，用长度头切分消息边界。读取实现尚未处理半包，见「已知问题」
-- 按 `Message.Type` 路由到对应业务处理函数，服务端目前处理登录请求
+- 按 `Message.Type` 路由到对应业务处理函数，服务端目前处理 `LoginMes` 与 `RegisterMes`
 - 登录流程：客户端组装 `LoginMes` → 服务端查询 Redis → 返回 `LoginResMes{Code, Error}`
 - 注册消息结构：已定义 `RegisterMes` / `RegisterResMes`
-- 客户端注册流程：控制台输入用户信息 → 组装并发送 `RegisterMes` → 读取 `RegisterResMes`
+- 客户端注册流程：控制台输入用户信息 → 本地校验（ID 为正、密码和用户名非空）→ 发送 `RegisterMes` → 读取 `RegisterResMes`
+- 服务端注册流程：反序列化 `RegisterMes` → 参数校验（不合法返回 401）→ `UserDao.Register` 查重并写入 Redis `users` 哈希 → 返回 `RegisterResMes`
+- 注册结果码：200 成功 / 400 用户 ID 已存在 / 401 参数不合法 / 505 其他错误
+- 用户 JSON 统一用 `json.Marshal` 序列化后写入，密码或用户名包含 `"`、`\` 等字符也不会写坏数据
 - 客户端按 `main` / `process` 分层，登录成功后由独立 goroutine 持续接收服务端消息
 - 登录后的控制台菜单骨架（在线列表、发消息、消息列表为占位）
-- 数据访问层：`UserDao` 使用 redigo 连接池读取 Redis 的 `users` 哈希，并校验用户密码
+- 数据访问层：`UserDao` 使用 redigo 连接池读取 Redis 的 `users` 哈希，校验用户密码；注册时做重名校验并写入
 
 ## 项目结构
 
@@ -25,7 +28,7 @@ TalkMesh/
 │   ├── main/
 │   │   └── main.go          # 控制台入口与登录/注册菜单
 │   └── process/
-│       ├── userProcess.go   # 登录、注册：发送请求并处理结果
+│       ├── userProcess.go   # 登录、注册：本地校验、发送请求并处理结果
 │       ├── serve.go         # 登录后菜单、持续接收服务端消息
 │       └── smsProcess.go    # 发送消息（待实现）
 ├── common/
@@ -39,12 +42,12 @@ TalkMesh/
 │   │   ├── redis.go         # 创建 Redis 连接池
 │   │   └── processor.go     # 读包 + 按消息类型路由
 │   ├── process/
-│   │   ├── userProcess.go   # 登录处理（注册待实现）
+│   │   ├── userProcess.go   # 登录、注册处理
 │   │   └── smsProcess.go    # 消息处理（待实现）
 │   └── model/
 │       ├── user.go          # User 结构体
 │       ├── error.go         # 业务错误（用户不存在 / 已存在 / 密码错误）
-│       └── userDao.go       # 基于 Redis 的用户数据访问与登录校验
+│       └── userDao.go       # 基于 Redis 的用户数据访问：登录校验、注册写入
 ├── _png/                    # 客户端、服务端、交互结构图
 ├── go.mod
 ├── go.sum
@@ -56,8 +59,6 @@ TalkMesh/
 ## 运行
 
 依赖：Go 1.27+、Redis（默认地址 `127.0.0.1:6379`）。
-
-启动服务端前，先在 Redis 的 `users` 哈希中准备用户数据，例如：
 
 ```bash
 redis-cli HSET users 114514 '{"userId":114514,"userPwd":"qwe","userName":"测试用户"}'
@@ -74,8 +75,6 @@ go run ./serve/main
 ```bash
 go run ./client/main
 ```
-
-服务端默认监听 `0.0.0.0:8899`。
 
 ## 消息格式
 
@@ -112,19 +111,8 @@ type Message struct {
 | --- | --- | --- |
 | `LoginMes` | 客户端 → 服务端 | 登录请求，`userId` / `userPwd` / `userName` |
 | `LoginResMes` | 服务端 → 客户端 | 登录结果，`code`：200 成功 / 403 密码错误 / 500 用户不存在 / 505 未知错误，`error` 为提示信息 |
-| `RegisterMes` | 客户端 → 服务端 | 注册请求，已定义 `user` 字段 |
-| `RegisterResMes` | 服务端 → 客户端 | 注册结果预留，`code`：200 成功 / 400 用户已存在；服务端处理待实现 |
-
-## 已知问题
-
-1. `ReadPkg` 直接调用 `Conn.Read`，不保证一次读满包头/包体，遇到半包会出错，应改用 `io.ReadFull`。
-2. 密码目前明文传输并以明文存储，后续增加哈希存储与安全传输。
-3. 缓冲区固定 8096 字节，超过长度的包会切片越界。
-4. 没有心跳，客户端拔网线时服务端无法及时感知下线。
-5. 错误处理以 `fmt.Println` 为主，没有日志级别和统一错误返回。
-6. 注册请求目前只完成客户端发送，服务端尚未处理；客户端注册失败时仍提示“登录失败”。
-7. `common/message` 直接引用 `serve/model`，造成公共层反向依赖服务端；后续应将公共用户类型移到 `common` 或直接在注册消息中定义字段。
-8. 没有单元测试。
+| `RegisterMes` | 客户端 → 服务端 | 注册请求，`user` 字段包含 `userId` / `userPwd` / `userName` |
+| `RegisterResMes` | 服务端 → 客户端 | 注册结果，`code`：200 成功 / 400 用户已存在 / 401 参数不合法 / 505 其他错误，`error` 为提示信息 |
 
 ## 开发计划
 
@@ -134,8 +122,10 @@ type Message struct {
 - [x] 引入 redigo、初始化连接池并接入 `UserDao`
 - [x] 登录改为 Redis 校验
 - [x] 定义登录/注册消息结构，完成客户端注册请求发送
+- [x] 实现服务端注册：处理 `RegisterMes` + Redis 写入 + 重名校验 + 参数校验（401）
 - [ ] 修复分包读取：`io.ReadFull` + 包长上限校验
-- [ ] 实现服务端注册：处理 `RegisterMes` + Redis `hset` 写入 + 重名校验
+- [ ] 注册改用 `HSETNX`，消除并发重复注册
+- [ ] 客户端增加读超时，检查 `ReadPkg` 错误，区分「没响应」和「响应解析失败」
 - [ ] 维护在线用户列表并支持群聊广播
 - [ ] 实现一对一聊天（按用户 ID 路由）
 - [ ] 应用层心跳与断线清理
