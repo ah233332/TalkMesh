@@ -16,28 +16,37 @@ type Processor struct {
 	Conn net.Conn
 }
 
-// 路由功能,根据客户端发送的消息种类不同，决定调用哪个函数处理
+// 通过 mes.Type 判断业务类型，创建持有当前 Conn 的 UserProcess，并将登录消息交给 ServerProcessLogin 处理。
+// 注册分支目前只保留接入位置，未知类型会输出提示；各业务处理返回的 err 会继续交给调用方处理。
 func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
-	up := process.UserProcess{
-		Conn: pr.Conn,
-	}
 
 	switch mes.Type {
 	case message.LoginMesType:
+		up := process.UserProcess{
+			Conn: pr.Conn,
+		}
 		err = up.ServerProcessLogin(mes)
 		if err != nil {
 			fmt.Println("ServerProcessLogin err=", err)
 			return
 		}
 	case message.RegisterMesType:
-		//处理注册
+		up := process.UserProcess{
+			Conn: pr.Conn,
+		}
+		err = up.ServerProcessRegister(mes)
+		if err != nil {
+			fmt.Println("ServerProcessRegister err=", err)
+			return
+		}
 	default:
 		fmt.Println("消息类型不存在，无法处理...")
 	}
 	return
 }
 
-// 处理与客户端的通讯
+// 通过 utils.Transfer 循环读取客户端数据包，把解析得到的 mes 交给 ServeProcessMes 路由处理。
+// 遇到 io.EOF 表示客户端退出，其他读取或处理错误也会记录并返回，同时 defer 关闭当前 Conn。
 func (pr *Processor) processTCP() (err error) {
 	defer pr.Conn.Close()
 

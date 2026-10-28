@@ -8,7 +8,8 @@ import (
 
 var pool *redis.Pool
 
-// 初始化链接池，地址，最大空闲链接数，最大同时链接数，最大空闲时间
+// 通过 address、maxIdle、maxActive 和 idleTimeout 构造 redigo 连接池，并赋值给全局 pool。
+// Dial 回调使用 redis.Dial("tcp", address) 创建连接，后续 UserDao 可通过该连接池复用 Redis 连接。
 func initPool(address string, maxIdle, maxActive int, idleTimeout time.Duration) {
 	pool = &redis.Pool{
 		MaxIdle:   maxIdle,   //最大空闲链接数

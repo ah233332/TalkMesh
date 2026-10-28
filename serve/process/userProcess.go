@@ -16,7 +16,9 @@ type UserProcess struct {
 	Conn net.Conn
 }
 
-// 登录功能的核心代码
+// 通过 json.Unmarshal 将 mes.Data 还原为 LoginMes，取出 UserId 和 UserPwd，并调用 MyUserDao.Login 查询 Redis。
+// 根据返回的 user 和 err 填充 LoginResMes.Code 与 Error，区分登录成功、密码错误、用户不存在和未知错误。
+// 最后将 LoginResMes 序列化到外层 Message.Data，并通过 Transfer.WritePkg 把处理结果返回客户端。
 func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	//1.先从mes中取出mes data,并直接反序列化成LoginMes
 	var loginmes message.LoginMes
@@ -32,25 +34,18 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 
 	var loginResMesData message.LoginResMes
 
-	//测试：如果用户ID为114514 密码qwe 认为合法
-	// if loginmes.UserId == 114514 && loginmes.UserPwd == "qwe" {
-	// 	loginResMesData.Code = 200 //登录成功
-	// } else {
-	// 	loginResMesData.Code = 500 //登录失败，用户不存在
-	// 	loginResMesData.Error = "该用户不存在，请注册再登录"
-	// }
-
 	//需要到redis数据库去验证登录
 	user, err := model.MyUserDao.Login(loginmes.UserId, loginmes.UserPwd)
 
 	if err != nil {
-		if err == model.ERROR_USER_PWD {
+		switch err {
+		case model.ERROR_USER_PWD:
 			loginResMesData.Code = 403 //密码错误
 			loginResMesData.Error = err.Error()
-		} else if err == model.ERROR_USER_NOTEXISTS {
+		case model.ERROR_USER_NOTEXISTS:
 			loginResMesData.Code = 500 //用户不存在
 			loginResMesData.Error = err.Error()
-		} else {
+		default:
 			loginResMesData.Code = 505 //未知错误
 			loginResMesData.Error = "未定义的错误"
 		}
@@ -88,4 +83,69 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	}
 	return
 
+}
+
+func (u *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
+	//1.把mes数据反序列化整出来
+	var registerMes message.RegisterMes
+	err = json.Unmarshal([]byte(mes.Data), &registerMes)
+	if err != nil {
+		fmt.Println("unmarshal mes data err", err)
+		return
+	}
+
+	//2.设置好ResMes信息
+	var registerResMes message.Message
+	registerResMes.Type = message.RegisterResMesType
+
+	var registerResMesData message.RegisterResMes
+
+	//3.进行函数操作
+	if registerMes.User.UserId <= 0 || registerMes.User.UserPwd == "" || registerMes.User.UserName == "" {
+		registerResMesData.Code = 401
+		registerResMesData.Error = "用户ID必须为正数，密码和用户名不能为空"
+		// 这里不要 return，下面还要把 401 发回客户端
+	} else {
+		err = model.MyUserDao.Register(&registerMes.User)
+
+		switch err {
+		case nil:
+			registerResMesData.Code = 200 //表示注册成功
+			fmt.Println("注册成功！！！")
+			fmt.Printf("您的id=%d,Name=%s,Pwd=%s\n", registerMes.User.UserId, registerMes.User.UserName, registerMes.User.UserPwd)
+		case model.ERROR_USER_EXISTS:
+			registerResMesData.Code = 400 //表示注册ID被占用
+			registerResMesData.Error = err.Error()
+		default:
+			registerResMesData.Code = 505 //表示其他错误情况
+			registerResMesData.Error = "未定义的错误"
+		}
+	}
+
+	//4.序列化返回的信息并发送到客户端
+	data, err := json.Marshal(registerResMesData)
+	if err != nil {
+		fmt.Println("marshal registerResMesData err=", err)
+		return
+	}
+	registerResMes.Data = string(data)
+	//registerResMes赋值完毕，准备序列化
+
+	data, err = json.Marshal(registerResMes)
+	if err != nil {
+		fmt.Println("marshal registerResMes err=", err)
+		return
+	}
+	//此时data就是准备发送的内容
+
+	tf := utils.Transfer{
+		Conn: u.Conn,
+	}
+
+	err = tf.WritePkg(data)
+	if err != nil {
+		fmt.Println("tf write err=", err)
+		return
+	}
+	return
 }
