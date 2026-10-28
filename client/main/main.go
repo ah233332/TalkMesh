@@ -6,6 +6,8 @@ import (
 	"github.com/ah233332/TalkMesh/client/process"
 )
 
+// 通过循环显示控制台主菜单，读取 key 并将用户操作分派到登录、注册或退出流程。
+// 登录和注册时会收集 userId、userPwd、userName，调用 UserProcess 的对应方法，并输出返回的 err。
 func main() {
 	var (
 		key      int

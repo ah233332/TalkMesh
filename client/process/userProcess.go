@@ -12,7 +12,9 @@ import (
 type UserProcess struct {
 }
 
-// 登录功能：客户端向服务端发送登录请求,并处理服务端返回的信息
+// 通过 net.Dial 建立到 0.0.0.0:8899 的 TCP 连接，将 userId 和 userPwd 写入 LoginMes 并序列化到 Message.Data。
+// 随后使用 Transfer.WritePkg 发送登录请求，再用 Transfer.ReadPkg 解析 LoginResMes。
+// 登录成功时输出提示、启动 continueProcess 接收消息并循环显示菜单；失败时输出服务端返回的错误信息。
 func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 	//1.连接到服务器端
 	conn, err := net.Dial("tcp", "0.0.0.0:8899")
@@ -86,10 +88,18 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 	return
 }
 
-// 注册功能：客户端向服务端发送注册请求,并处理服务端返回的信息
+// 通过 net.Dial 建立 TCP 连接，将 userId、userPwd、userName 填入 RegisterMes 并序列化到 Message.Data。
+// 发送注册包后使用 Transfer.ReadPkg 获取服务端响应，再按 registerResMes.Code 输出成功、用户已存在或错误信息。
+// 任一连接、序列化、发送或响应解析步骤失败时都会返回对应的 err。
 func (up *UserProcess) Register(userId int, userPwd string, userName string) (err error) {
+	//0.先判断用户要注册的信息是否合法
+	if userId <= 0 || userName == "" || userPwd == "" {
+		fmt.Println("注册信息不合法，请重新输入")
+		return
+	}
+
 	//1.连接到服务器端
-	conn, err := net.Dial("tcp", "0.0.0.0:8899")
+	conn, err := net.Dial("tcp", "127.0.0.1:8899")
 	if err != nil {
 		fmt.Println("net dial err=", err)
 		return
@@ -136,20 +146,30 @@ func (up *UserProcess) Register(userId int, userPwd string, userName string) (er
 	}
 
 	//5.处理服务器端返回的消息
-	registerMes, err := tf.ReadPkg()
-	var registerResMes message.RegisterResMes
-	err = json.Unmarshal([]byte(registerMes.Data), &registerResMes)
+	registerResMes, err := tf.ReadPkg()
+	if err != nil {
+		fmt.Println("register readPkg err=", err)
+		return
+	}
+
+	var registerResMesData message.RegisterResMes
+	err = json.Unmarshal([]byte(registerResMes.Data), &registerResMesData)
 	if err != nil {
 		fmt.Println("unmarshal err=", err)
 		return
 	}
 
-	if registerResMes.Code == 200 {
+	switch registerResMesData.Code {
+	case 200:
 		fmt.Println("注册成功！！！")
-	} else if registerResMes.Code == 400 {
+	case 400:
 		fmt.Println("用户ID已被占用")
-	} else {
-		fmt.Println(registerResMes.Error)
+	case 401:
+		fmt.Println("申请注册的信息非法")
+	case 505:
+		fmt.Println("未知错误")
+	default:
+		fmt.Println(registerResMesData.Error)
 	}
 
 	return

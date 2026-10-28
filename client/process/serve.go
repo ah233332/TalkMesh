@@ -8,7 +8,8 @@ import (
 	"github.com/ah233332/TalkMesh/common/utils"
 )
 
-// 显示成功登录后的菜单
+// 通过控制台打印登录后的功能菜单，读取 key，并按选项进入在线用户、发送消息、消息列表或退出流程。
+// 当前除退出外的选项均为占位输出，选择 4 时会调用 os.Exit(0) 结束客户端进程。
 func ShowMenu() {
 	fmt.Println("---------恭喜XXX登录成功---------")
 	fmt.Println("-------1.显示在线用户列表--------")
@@ -35,7 +36,8 @@ func ShowMenu() {
 
 }
 
-// 和服务器保持通讯
+// 通过 utils.Transfer 持续调用 ReadPkg 读取服务端推送的数据包，读取成功后输出 mes。
+// 一旦读取失败，会记录 err 并返回，从而结束当前接收消息的 goroutine。
 func continueProcess(Conn net.Conn) {
 	tf := utils.Transfer{
 		Conn: Conn,
