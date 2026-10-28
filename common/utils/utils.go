@@ -14,9 +14,8 @@ type Transfer struct {
 	Buf  [8096]byte
 }
 
-// readPkg 从连接中读取一个完整的数据包。
-// 它先读取 4 字节大端长度头，再按该长度读取消息体，
-// 最后将 JSON 格式的消息体反序列化为 message.Message。
+// 通过 t.Conn.Read 先读取 4 字节大端长度头并转换为 pkgLen，再按该长度把 JSON 消息体读入 t.Buf。
+// 读取完成后使用 json.Unmarshal 将数据写入 mes 并返回；长度不符、连接读取失败或解析失败时返回 err。
 func (t *Transfer) ReadPkg() (mes message.Message, err error) {
 	fmt.Println("读取客户端发送的数据...")
 	_, err = t.Conn.Read(t.Buf[:4])
@@ -47,7 +46,8 @@ func (t *Transfer) ReadPkg() (mes message.Message, err error) {
 
 }
 
-// 通用的打包发送函数，先发送数据长度，再发送数据本体
+// 通过 len(data) 计算 dataLen，使用大端序把长度写入 t.Buf[:4] 并先发送长度头。
+// 随后继续发送 data 本体，并检查每次写入的字节数与 err，确保接收端能够按相同边界拆分消息。
 func (t *Transfer) WritePkg(data []byte) (err error) {
 	//1.先发送长度给对方
 	var dataLen uint32

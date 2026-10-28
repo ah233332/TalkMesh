@@ -14,7 +14,7 @@ type Message struct {
 	Data string `json:"data"` //消息内容
 }
 
-//登录信息
+// 登录信息
 type LoginMes struct {
 	UserId   int    `json:"userId"`   //用户ID
 	UserPwd  string `json:"userPwd"`  //用户密码
@@ -27,7 +27,7 @@ type LoginResMes struct {
 	//500表示用户未注册 200表示登录成功 403密码错误 505未知错误
 }
 
-//注册信息
+// 注册信息
 type RegisterMes struct {
 	User model.User `json:"user"`
 }
@@ -35,5 +35,6 @@ type RegisterMes struct {
 type RegisterResMes struct {
 	Code  int    `json:"code"`
 	Error string `json:"error"`
-	//400表示用户已存在  200表示注册成功
+	//400表示用户已存在 401代表申请注册的信息不合规
+	//200表示注册成功  505表示未知错误
 }
