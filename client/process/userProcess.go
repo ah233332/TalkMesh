@@ -12,12 +12,12 @@ import (
 type UserProcess struct {
 }
 
-// 通过 net.Dial 建立到 0.0.0.0:8899 的 TCP 连接，将 userId 和 userPwd 写入 LoginMes 并序列化到 Message.Data。
+// 通过 net.Dial 建立到 127.0.0.1:8899 的 TCP 连接，将 userId 和 userPwd 写入 LoginMes 并序列化到 Message.Data。
 // 随后使用 Transfer.WritePkg 发送登录请求，再用 Transfer.ReadPkg 解析 LoginResMes。
 // 登录成功时输出提示、启动 continueProcess 接收消息并循环显示菜单；失败时输出服务端返回的错误信息。
 func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 	//1.连接到服务器端
-	conn, err := net.Dial("tcp", "0.0.0.0:8899")
+	conn, err := net.Dial("tcp", "127.0.0.1:8899")
 	if err != nil {
 		fmt.Println("net dial err=", err)
 		return
@@ -75,6 +75,19 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 
 	if loginResMes.Code == 200 {
 		fmt.Println("登录成功！！！")
+		//登陆成功后，显示当前在线用户列表，遍历UserIds
+		fmt.Println("当前在线用户列表如下：")
+		for _, v := range loginResMes.UserIds {
+			fmt.Println("用户id:\t", v)
+
+			//完成客户端的onlineUsers的初始化
+			user := &message.User{
+				UserId:     v,
+				UserStatus: message.UserOnline,
+			}
+			onlineUsers[v] = user
+		}
+		fmt.Println()
 
 		go continueProcess(conn)
 

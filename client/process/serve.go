@@ -1,10 +1,12 @@
 package process
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 
+	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/ah233332/TalkMesh/common/utils"
 )
 
@@ -22,13 +24,13 @@ func ShowMenu() {
 	fmt.Scan(&key)
 	switch key {
 	case 1:
-		fmt.Println("111")
+		outputOnlineUsers() //显示在线用户列表
 	case 2:
-		fmt.Println("2222")
+		fmt.Println("2222") //发送信息
 	case 3:
-		fmt.Println("3333")
+		fmt.Println("3333") //消息列表
 	case 4:
-		fmt.Println("444")
+		fmt.Println("444") //退出系统
 		os.Exit(0)
 	default:
 		fmt.Println("输入错误！！！")
@@ -51,7 +53,21 @@ func continueProcess(Conn net.Conn) {
 			return
 		}
 
-		//如果读取到消息...
-		fmt.Println("mes=", mes)
+		//读取到消息进行路由中转
+		switch mes.Type {
+		case message.NotifyUserStatusMesType:
+			//1.取出NotifyUserStatusMes信息
+			var notifyUserStatusMes message.NotifyUserStatusMes
+			err = json.Unmarshal([]byte(mes.Data), &notifyUserStatusMes)
+			if err != nil {
+				fmt.Println("unmarshal mes data err=", err)
+				return
+			}
+			//2.把用户信息存入客户端维护的map[int]User中
+			updateUserStatus(&notifyUserStatusMes)
+
+		default:
+			fmt.Println("消息类型错误")
+		}
 	}
 }
