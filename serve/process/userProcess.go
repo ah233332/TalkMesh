@@ -13,7 +13,8 @@ import (
 )
 
 type UserProcess struct {
-	Conn net.Conn
+	Conn   net.Conn
+	UserId int
 }
 
 // 通过 json.Unmarshal 将 mes.Data 还原为 LoginMes，取出 UserId 和 UserPwd，并调用 MyUserDao.Login 查询 Redis。
@@ -35,7 +36,7 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	var loginResMesData message.LoginResMes
 
 	//需要到redis数据库去验证登录
-	user, err := model.MyUserDao.Login(loginmes.UserId, loginmes.UserPwd)
+	_, err = model.MyUserDao.Login(loginmes.UserId, loginmes.UserPwd)
 
 	if err != nil {
 		switch err {
@@ -51,7 +52,19 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 		}
 	} else {
 		loginResMesData.Code = 200 //登录成功
-		fmt.Println(*user, "登录成功！！！！！！！！")
+
+		//登陆成功后的用户放入userMgr中
+		u.UserId = loginmes.UserId
+		userMgr.AddOnlineUser(u)
+
+		//把自己上线的信息发送给其他人
+		u.NotifyOtherOnlineUser(loginmes.UserId)
+
+		//把当前在线用户的id，全都放入loginResMes.UsersId
+		//遍历UserMgr.onlineUsers
+		for id := range userMgr.onlineUsers {
+			loginResMesData.UserIds = append(loginResMesData.UserIds, id)
+		}
 	}
 
 	data, err := json.Marshal(loginResMesData)
@@ -145,6 +158,69 @@ func (u *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("tf write err=", err)
+		return
+	}
+	return
+}
+
+// 通知所有在线用户的方法
+// userId要通知其他的在线好友(目前无好友功能，即为全部用户)，通知状态信息
+func (u *UserProcess) NotifyOtherOnlineUser(userId int) {
+	//遍历onlineUsers,然后一个个发送NotifyUserStatusMes
+	for id, up := range userMgr.onlineUsers {
+		//先过滤自己
+		if id == userId {
+			continue
+		}
+		//开始通知，引出一个函数方法
+		//u是自己的userprocess up是其他人的userprocess
+		up.serverNotifyOther(userId)
+	}
+}
+
+// 用来服务NotifyOtherOnlineUser的函数方法，
+// 主要做了打包信息并发送的功能
+func (u *UserProcess) serverNotifyOther(userId int) {
+	data, err := u.creatNotifyMes(userId)
+	if err != nil {
+		fmt.Println("creatNotifyMes err=", err)
+		return
+	}
+	//此时data就是可直接发送的信息
+	//发送信息
+	tf := utils.Transfer{
+		Conn: u.Conn,
+	}
+	err = tf.WritePkg(data)
+	if err != nil {
+		fmt.Println("write data err=", err)
+		return
+	}
+
+}
+
+// 用来服务serverNotifyOther的函数方法，
+// 主要功能是打包通知其他人上线的信息，避免重复打包
+func (u *UserProcess) creatNotifyMes(userId int) (data []byte, err error) {
+	var mes message.Message
+	mes.Type = message.NotifyUserStatusMesType
+
+	var notifyUserStatusMes message.NotifyUserStatusMes
+	notifyUserStatusMes.UserId = userId
+	notifyUserStatusMes.Status = message.UserOnline
+
+	//将notifyUserStatusMes序列化
+	data, err = json.Marshal(notifyUserStatusMes)
+	if err != nil {
+		fmt.Println("marshal notifyUserStatusMes err=", err)
+		return
+	}
+
+	mes.Data = string(data)
+
+	data, err = json.Marshal(mes)
+	if err != nil {
+		fmt.Println("marshal mes err=", err)
 		return
 	}
 	return

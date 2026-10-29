@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -28,7 +29,7 @@ func NewUserDao(pool *redis.Pool) (userDao *UserDao) {
 
 // 通过 conn.Do("hget", "users", id) 从 users 哈希中读取指定 ID 的 JSON 字符串。
 // 命中后使用 json.Unmarshal 将其还原为 User；遇到 redis.ErrNil 时转换为 ERROR_USER_NOTEXISTS，其他错误原样返回。
-func (ud *UserDao) getUserById(conn redis.Conn, id int) (user *User, err error) {
+func (ud *UserDao) getUserById(conn redis.Conn, id int) (user *message.User, err error) {
 	//给定Id,去redis中查询该用户
 	res, err := redis.String(conn.Do("hget", "users", id))
 	if err != nil {
@@ -39,7 +40,7 @@ func (ud *UserDao) getUserById(conn redis.Conn, id int) (user *User, err error) 
 		}
 		return user, err
 	}
-	user = &User{}
+	user = &message.User{}
 	//把res反序列化成User实例
 	err = json.Unmarshal([]byte(res), user)
 	if err != nil {
@@ -51,7 +52,7 @@ func (ud *UserDao) getUserById(conn redis.Conn, id int) (user *User, err error) 
 
 // 通过 ud.pool.Get 获取 Redis 连接，并在 defer 中关闭，然后调用 getUserById 查询 userId。
 // 查询成功后比较 user.UserPwd 与 userPwd，不一致时返回 ERROR_USER_PWD，一致时返回 user 供上层生成登录响应。
-func (ud *UserDao) Login(userId int, userPwd string) (user *User, err error) {
+func (ud *UserDao) Login(userId int, userPwd string) (user *message.User, err error) {
 	//从链接池中取一个连接
 	conn := ud.pool.Get()
 	defer conn.Close()
@@ -72,7 +73,7 @@ func (ud *UserDao) Login(userId int, userPwd string) (user *User, err error) {
 
 }
 
-func (ud *UserDao) Register(user *User) (err error) {
+func (ud *UserDao) Register(user *message.User) (err error) {
 	conn := ud.pool.Get()
 	defer conn.Close()
 
