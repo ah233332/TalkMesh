@@ -39,6 +39,13 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			fmt.Println("ServerProcessRegister err=", err)
 			return
 		}
+	case message.SmsMessageType:
+		sp := process.SmsProcess{}
+		err = sp.ServeGroupMes(mes)
+		if err != nil {
+			fmt.Println("ServerGroupMes err=", err)
+			return
+		}
 	default:
 		fmt.Println("消息类型不存在，无法处理...")
 	}
