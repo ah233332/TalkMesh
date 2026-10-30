@@ -3,10 +3,13 @@ package process
 import (
 	"fmt"
 
+	"github.com/ah233332/TalkMesh/client/model"
 	"github.com/ah233332/TalkMesh/common/message"
 )
 
+// 客户端需要维护的东西
 var onlineUsers map[int]*message.User = make(map[int]*message.User, 10)
+var curUser model.CurUser
 
 // 在客户端显示当前在线用户
 func outputOnlineUsers() {

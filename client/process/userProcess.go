@@ -86,6 +86,12 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 				UserStatus: message.UserOnline,
 			}
 			onlineUsers[v] = user
+
+			//完成客户端的CurUser的初始化
+			curUser.Conn = conn
+			curUser.UserId = userId
+			curUser.UserName = loginMex.UserName
+			curUser.UserStatus = message.UserOnline
 		}
 		fmt.Println()
 

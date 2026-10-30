@@ -15,18 +15,27 @@ import (
 func ShowMenu() {
 	fmt.Println("---------恭喜XXX登录成功---------")
 	fmt.Println("-------1.显示在线用户列表--------")
-	fmt.Println("-----------2.发送消息-----------")
+	fmt.Println("-----------2.发送广播消息-----------")
 	fmt.Println("-----------3.消息列表-----------")
 	fmt.Println("-----------4.退出系统-----------")
 	fmt.Println("请选择(1-4):")
 
 	var key int
 	fmt.Scan(&key)
+
+	var content string
+	sp := SmsProcess{}
+
 	switch key {
 	case 1:
 		outputOnlineUsers() //显示在线用户列表
 	case 2:
-		fmt.Println("2222") //发送信息
+		//进行群聊的发送
+		fmt.Println("请输入你想说的话：")
+		fmt.Scan(&content)
+
+		sp.SendGroupMes(content)
+
 	case 3:
 		fmt.Println("3333") //消息列表
 	case 4:
@@ -55,7 +64,7 @@ func continueProcess(Conn net.Conn) {
 
 		//读取到消息进行路由中转
 		switch mes.Type {
-		case message.NotifyUserStatusMesType:
+		case message.NotifyUserStatusMesType: //状态更新信息
 			//1.取出NotifyUserStatusMes信息
 			var notifyUserStatusMes message.NotifyUserStatusMes
 			err = json.Unmarshal([]byte(mes.Data), &notifyUserStatusMes)
@@ -65,7 +74,12 @@ func continueProcess(Conn net.Conn) {
 			}
 			//2.把用户信息存入客户端维护的map[int]User中
 			updateUserStatus(&notifyUserStatusMes)
-
+		case message.SmsTransferMesType: //客户端响应发给其他人的信息
+			err = outputGroupMes(&mes)
+			if err != nil {
+				fmt.Println("outputGroupMes err=", err)
+				return
+			}
 		default:
 			fmt.Println("消息类型错误")
 		}
