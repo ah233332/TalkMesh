@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/ah233332/TalkMesh/common/utils"
@@ -54,7 +55,9 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 	//fmt.Println(string(data))
 
 	tf := utils.Transfer{
-		Conn: conn,
+		Conn:    conn,
+		Timeout: 5 * time.Second,
+		//设置5秒的登录超时时限
 	}
 
 	//4.发送数据长度与本体给对方
@@ -66,6 +69,10 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 
 	//5.处理服务器端返回的消息
 	resMes, err := tf.ReadPkg()
+	if err != nil {
+		fmt.Println("读取登录响应失败：", err)
+		return
+	}
 	var loginResMes message.LoginResMes
 	err = json.Unmarshal([]byte(resMes.Data), &loginResMes)
 	if err != nil {
@@ -154,13 +161,15 @@ func (up *UserProcess) Register(userId int, userPwd string, userName string) (er
 	//data就是要发送的信息
 
 	tf := utils.Transfer{
-		Conn: conn,
+		Conn:    conn,
+		Timeout: 5 * time.Second,
+		//同样的5秒超时
 	}
 
 	//4.发送数据长度与本体给对方
 	err = tf.WritePkg(data)
 	if err != nil {
-		fmt.Println("register writePkg err=", err)
+		fmt.Println("发送注册请求失败：", err)
 		return
 	}
 
