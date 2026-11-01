@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/ah233332/TalkMesh/common/message"
@@ -14,31 +15,39 @@ type Transfer struct {
 	Buf  [8096]byte
 }
 
-// 通过 t.Conn.Read 先读取 4 字节大端长度头并转换为 pkgLen，再按该长度把 JSON 消息体读入 t.Buf。
-// 读取完成后使用 json.Unmarshal 将数据写入 mes 并返回；长度不符、连接读取失败或解析失败时返回 err。
+// ReadPkg 从 t.Conn 读取一个完整的数据包。
+// 先用 io.ReadFull 读满 4 字节大端长度头并转换为 pkgLen，校验 pkgLen 不超过缓冲区大小（当前 8096 字节），
+// 再用 io.ReadFull 读满包体，最后把 JSON 反序列化为 message.Message。
+// 连接读取失败、长度非法或反序列化失败时返回 error，调用方应关闭该连接。
 func (t *Transfer) ReadPkg() (mes message.Message, err error) {
-	fmt.Println("读取客户端发送的数据...")
-	_, err = t.Conn.Read(t.Buf[:4])
+	_, err = io.ReadFull(t.Conn, t.Buf[:4])
 	if err != nil {
-		fmt.Println("t.Conn read err=", err)
+		err = fmt.Errorf("t.Conn ioreadfull err=%w", err)
 		return
 	}
 
 	//把buf[:4]转成一个uint32类型
 	var pkgLen uint32
 	pkgLen = binary.BigEndian.Uint32(t.Buf[:4])
+	//binary 包实现了数字与字节序列之间的简单转换
+	//判断pkglen是否合法
+	if int(pkgLen) == 0 || int(pkgLen) > len(t.Buf) {
+		err = fmt.Errorf("pkgLen长度错误:%d", int(pkgLen))
+		return
+	}
 
 	//根据pkgLen读取消息内容
-	n, err := t.Conn.Read(t.Buf[:pkgLen]) //从conn读取pkgLen个字节到buf里面
-	if n != int(pkgLen) || err != nil {
-		fmt.Println("t.Conn read err=", err)
+	//io.ReadFull 要么读满成功，要么返回错误
+	_, err = io.ReadFull(t.Conn, t.Buf[:pkgLen]) //从conn读取pkgLen个字节到buf里面
+	if err != nil {
+		err = fmt.Errorf("t.Conn ioreadfull err=%w", err)
 		return
 	}
 
 	//t.buf  反序列化成 Message类型
 	err = json.Unmarshal(t.Buf[:pkgLen], &mes)
 	if err != nil {
-		fmt.Println("unmarshal err=", err)
+		err = fmt.Errorf("unmarshal err=%w", err)
 		return
 	}
 
@@ -52,6 +61,12 @@ func (t *Transfer) WritePkg(data []byte) (err error) {
 	//1.先发送长度给对方
 	var dataLen uint32
 	dataLen = uint32(len(data))
+
+	//再次验证一下包长
+	if int(dataLen) == 0 || int(dataLen) > len(t.Buf) {
+		err = fmt.Errorf("dataLen长度错误:%d", int(dataLen))
+		return
+	}
 
 	binary.BigEndian.PutUint32(t.Buf[:4], dataLen)
 	n, err := t.Conn.Write(t.Buf[:4])

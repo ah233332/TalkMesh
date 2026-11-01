@@ -45,7 +45,7 @@ type RegisterResMes struct {
 
 // 定义一些状态常量
 const (
-	UserOnline = iota
+	UserOnline = iota + 1
 	UserOffline
 	UserBusyStatus
 )
