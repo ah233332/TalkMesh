@@ -3,6 +3,7 @@ package main
 //中转路由功能
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -64,7 +65,7 @@ func (pr *Processor) processTCP() (err error) {
 	for {
 		mes, err := tf.ReadPkg()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				fmt.Println("客户端退出，服务器端也退出")
 				return err
 			} else {

@@ -28,11 +28,11 @@ func (sp *SmsProcess) ServeGroupMes(mes *message.Message) (err error) {
 		fmt.Println("marshal mes err=", err)
 		return
 	}
-	for _, up := range userMgr.onlineUsers {
+	for _, up := range userMgr.Snapshot() {
 
-		err = sp.sendGroupMes(up.Conn, data)
-		if err != nil {
-			fmt.Println("该用户发送失败", up.UserId)
+		errSend := sp.sendGroupMes(up.Conn, data)
+		if errSend != nil {
+			fmt.Printf("群发给用户:%d 发送失败\n", up.UserId)
 			continue
 		}
 	}

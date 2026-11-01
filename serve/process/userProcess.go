@@ -61,9 +61,9 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 		u.NotifyOtherOnlineUser(loginmes.UserId)
 
 		//把当前在线用户的id，全都放入loginResMes.UsersId
-		//遍历UserMgr.onlineUsers
-		for id := range userMgr.onlineUsers {
-			loginResMesData.UserIds = append(loginResMesData.UserIds, id)
+		//遍历UserMgr.onlineUsers的副本
+		for _, up := range userMgr.Snapshot() {
+			loginResMesData.UserIds = append(loginResMesData.UserIds, up.UserId)
 		}
 	}
 
@@ -167,9 +167,9 @@ func (u *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 // userId要通知其他的在线好友(目前无好友功能，即为全部用户)，通知状态信息
 func (u *UserProcess) NotifyOtherOnlineUser(userId int) {
 	//遍历onlineUsers,然后一个个发送NotifyUserStatusMes
-	for id, up := range userMgr.onlineUsers {
+	for _, up := range userMgr.Snapshot() {
 		//先过滤自己
-		if id == userId {
+		if up.UserId == userId {
 			continue
 		}
 		//开始通知，引出一个函数方法

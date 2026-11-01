@@ -93,10 +93,13 @@ func (ud *UserDao) Register(user *message.User) (err error) {
 			return err
 		}
 
-		_, err = conn.Do("hset", "users", user.UserId, string(data))
+		ok, err := redis.Int(conn.Do("hsetnx", "users", user.UserId, string(data)))
 		if err != nil {
-			fmt.Println("conn do hset err=", err)
+			fmt.Println("conn do hsetnx err=", err)
 			return err
+		}
+		if ok == 0 {
+			return ERROR_USER_EXISTS
 		}
 	default:
 		return err
