@@ -6,20 +6,36 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/ah233332/TalkMesh/common/message"
 )
 
 type Transfer struct {
-	Conn net.Conn
-	Buf  [8096]byte
+	Conn    net.Conn
+	Buf     [8096]byte
+	Timeout time.Duration // 每次 ReadPkg 的读超时；0 表示不超时
 }
 
 // ReadPkg 从 t.Conn 读取一个完整的数据包。
 // 先用 io.ReadFull 读满 4 字节大端长度头并转换为 pkgLen，校验 pkgLen 不超过缓冲区大小（当前 8096 字节），
 // 再用 io.ReadFull 读满包体，最后把 JSON 反序列化为 message.Message。
 // 连接读取失败、长度非法或反序列化失败时返回 error，调用方应关闭该连接。
+// 每次调用都会按 Timeout 重设连接的读超时：大于 0 设置新的截止时间，否则清除。
 func (t *Transfer) ReadPkg() (mes message.Message, err error) {
+	if t.Timeout > 0 {
+		if err = t.Conn.SetReadDeadline(time.Now().Add(t.Timeout)); err != nil {
+			return
+		}
+	} else {
+		// 同一连接会被登录和收消息两个阶段复用，
+		// 这里必须显式清除上一阶段留下的 deadline，否则会沿用登录时的 5 秒限制
+		err = t.Conn.SetReadDeadline(time.Time{})
+		if err != nil {
+			return
+		}
+	}
+
 	_, err = io.ReadFull(t.Conn, t.Buf[:4])
 	if err != nil {
 		err = fmt.Errorf("t.Conn ioreadfull err=%w", err)
