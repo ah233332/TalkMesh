@@ -53,6 +53,10 @@ func (um *UserMgr) DelOnlineUser(userId int) {
 	delete(um.onlineUsers, userId)
 }
 
+func DelOnlineUser(userId int) {
+	userMgr.DelOnlineUser(userId)
+}
+
 // 根据id返回对应的onlineUsers
 func (um *UserMgr) GetOnlineUserById(userid int) (up *UserProcess, err error) {
 	um.mu.RLock()

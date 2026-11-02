@@ -14,7 +14,8 @@ import (
 )
 
 type Processor struct {
-	Conn net.Conn
+	Conn   net.Conn
+	UserId int
 }
 
 // 通过 mes.Type 判断业务类型，创建持有当前 Conn 的 UserProcess，并将登录消息交给 ServerProcessLogin 处理。
@@ -31,6 +32,7 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			fmt.Println("ServerProcessLogin err=", err)
 			return
 		}
+		pr.UserId = up.UserId
 	case message.RegisterMesType:
 		up := process.UserProcess{
 			Conn: pr.Conn,
@@ -56,7 +58,24 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 // 通过 utils.Transfer 循环读取客户端数据包，把解析得到的 mes 交给 ServeProcessMes 路由处理。
 // 遇到 io.EOF 表示客户端退出，其他读取或处理错误也会记录并返回，同时 defer 关闭当前 Conn。
 func (pr *Processor) processTCP() (err error) {
+	//断开连接
 	defer pr.Conn.Close()
+	defer func() {
+		//广播
+		if pr.UserId != 0 {
+			up := process.UserProcess{
+				Conn:   pr.Conn,
+				UserId: pr.UserId,
+			}
+			up.NotifyOtherOnlineUser(up.UserId, message.UserOffline)
+		}
+	}()
+	//断线前把自己从在线列表中删除
+	defer func() {
+		if pr.UserId != 0 {
+			process.DelOnlineUser(pr.UserId)
+		}
+	}()
 
 	tf := utils.Transfer{
 		Conn: pr.Conn,
@@ -66,7 +85,7 @@ func (pr *Processor) processTCP() (err error) {
 		mes, err := tf.ReadPkg()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				fmt.Println("客户端退出，服务器端也退出")
+				fmt.Println("客户端退出")
 				return err
 			} else {
 				fmt.Println("readPkg err", err)
