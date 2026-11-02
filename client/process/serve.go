@@ -28,7 +28,7 @@ func ShowMenu() {
 
 	switch key {
 	case 1:
-		outputOnlineUsers() //显示在线用户列表
+		userMgr.outputOnlineUsers() //显示在线用户列表
 	case 2:
 		//进行群聊的发送
 		fmt.Println("请输入你想说的话：")
@@ -73,7 +73,7 @@ func continueProcess(Conn net.Conn) {
 				return
 			}
 			//2.把用户信息存入客户端维护的map[int]User中
-			updateUserStatus(&notifyUserStatusMes)
+			userMgr.updateUserStatus(&notifyUserStatusMes)
 		case message.SmsTransferMesType: //客户端响应发给其他人的信息
 			err = outputGroupMes(&mes)
 			if err != nil {

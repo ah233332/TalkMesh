@@ -88,19 +88,21 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 			fmt.Println("用户id:\t", v)
 
 			//完成客户端的onlineUsers的初始化
-			user := &message.User{
-				UserId:     v,
-				UserStatus: message.UserOnline,
-			}
-			onlineUsers[v] = user
+			// user := &message.User{
+			// 	UserId:     v,
+			// 	UserName:   loginMex.UserName,
+			// 	UserStatus: message.UserOnline,
+			// }
+			userMgr.markOnline(v)
 
-			//完成客户端的CurUser的初始化
-			curUser.Conn = conn
-			curUser.UserId = userId
-			curUser.UserName = loginMex.UserName
-			curUser.UserStatus = message.UserOnline
 		}
 		fmt.Println()
+
+		//完成客户端的CurUser的初始化
+		curUser.Conn = conn
+		curUser.UserId = userId
+		curUser.UserName = loginMex.UserName
+		curUser.UserStatus = message.UserOnline
 
 		go continueProcess(conn)
 
