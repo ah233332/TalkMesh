@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/ah233332/TalkMesh/common/utils"
@@ -49,6 +50,16 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			fmt.Println("ServerGroupMes err=", err)
 			return
 		}
+	case message.PingMesType:
+		pp := process.PingProcess{
+			Conn: pr.Conn,
+		}
+
+		err = pp.ServePing(mes)
+		if err != nil {
+			fmt.Println("ServerPing err=", err)
+			return
+		}
 	default:
 		fmt.Println("消息类型不存在，无法处理...")
 	}
@@ -78,7 +89,8 @@ func (pr *Processor) processTCP() (err error) {
 	}()
 
 	tf := utils.Transfer{
-		Conn: pr.Conn,
+		Conn:    pr.Conn,
+		Timeout: 30 * time.Second,
 	}
 
 	for {
