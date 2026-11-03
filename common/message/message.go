@@ -8,6 +8,8 @@ const (
 	NotifyUserStatusMesType = "NotifyUserStatusMes"
 	SmsMessageType          = "SmsMessage"
 	SmsTransferMesType      = "SmsTransferMes"
+	PingMesType             = "PingMes"
+	PongMesType             = "PongMes"
 )
 
 type Message struct {
@@ -72,4 +74,15 @@ type SmsTransferMes struct {
 	UserName   string `json:"userName"`
 	UserStatus int    `json:"status"`
 	Content    string `json:"content"`
+}
+
+// 用来做心跳的消息
+// 客户端->服务端
+type PingMes struct {
+	Timestamp int64 `json:"timestamp"`
+}
+
+// 服务端返回->客户端
+type PongMes struct {
+	Timestamp int64 `json:"timestamp"`
 }

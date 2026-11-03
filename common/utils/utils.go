@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/ah233332/TalkMesh/common/message"
@@ -16,6 +17,8 @@ type Transfer struct {
 	Buf     [8096]byte
 	Timeout time.Duration // 每次 ReadPkg 的读超时；0 表示不超时
 }
+
+var mu sync.Mutex
 
 // ReadPkg 从 t.Conn 读取一个完整的数据包。
 // 先用 io.ReadFull 读满 4 字节大端长度头并转换为 pkgLen，校验 pkgLen 不超过缓冲区大小（当前 8096 字节），
@@ -74,6 +77,9 @@ func (t *Transfer) ReadPkg() (mes message.Message, err error) {
 // 通过 len(data) 计算 dataLen，使用大端序把长度写入 t.Buf[:4] 并先发送长度头。
 // 随后继续发送 data 本体，并检查每次写入的字节数与 err，确保接收端能够按相同边界拆分消息。
 func (t *Transfer) WritePkg(data []byte) (err error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	//1.先发送长度给对方
 	var dataLen uint32
 	dataLen = uint32(len(data))
