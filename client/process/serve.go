@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/ah233332/TalkMesh/common/utils"
@@ -51,7 +52,8 @@ func ShowMenu() {
 // 一旦读取失败，会记录 err 并返回，从而结束当前接收消息的 goroutine。
 func continueProcess(Conn net.Conn) {
 	tf := utils.Transfer{
-		Conn: Conn,
+		Conn:    Conn,
+		Timeout: 30 * time.Second,
 	}
 
 	for {
@@ -80,6 +82,8 @@ func continueProcess(Conn net.Conn) {
 				fmt.Println("outputGroupMes err=", err)
 				return
 			}
+		case message.PongMesType:
+			//能收到pongMes 就说明一次心跳成功
 		default:
 			fmt.Println("消息类型错误")
 		}

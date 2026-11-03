@@ -104,7 +104,12 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 		curUser.UserName = loginMex.UserName
 		curUser.UserStatus = message.UserOnline
 
+		//这是一个持续监听服务器消息的协程
 		go continueProcess(conn)
+
+		//这是一个不断定时向服务器发送心跳信息的协程
+		pp := PingProcess{}
+		go pp.SendPingMes(conn)
 
 		for {
 			ShowMenu()
