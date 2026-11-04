@@ -24,7 +24,7 @@ type Processor struct {
 func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 
 	switch mes.Type {
-	case message.LoginMesType:
+	case message.LoginMesType: //登陆请求
 		up := process.UserProcess{
 			Conn: pr.Conn,
 		}
@@ -34,7 +34,7 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			return
 		}
 		pr.UserId = up.UserId
-	case message.RegisterMesType:
+	case message.RegisterMesType: //注册请求
 		up := process.UserProcess{
 			Conn: pr.Conn,
 		}
@@ -43,14 +43,14 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			fmt.Println("ServerProcessRegister err=", err)
 			return
 		}
-	case message.SmsMessageType:
+	case message.SmsMessageType: //群聊广播请求
 		sp := process.SmsProcess{}
 		err = sp.ServeGroupMes(mes)
 		if err != nil {
 			fmt.Println("ServerGroupMes err=", err)
 			return
 		}
-	case message.PingMesType:
+	case message.PingMesType: //心跳请求
 		pp := process.PingProcess{
 			Conn: pr.Conn,
 		}
@@ -58,6 +58,15 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 		err = pp.ServePing(mes)
 		if err != nil {
 			fmt.Println("ServerPing err=", err)
+			return
+		}
+	case message.SmsToUserMesType: //私聊请求
+		sp := process.SmsProcess{
+			Conn: pr.Conn,
+		}
+		err = sp.ServeToUserMes(mes)
+		if err != nil {
+			fmt.Println("ServeToUserMes err=", err)
 			return
 		}
 	default:
