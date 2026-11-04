@@ -17,28 +17,40 @@ func ShowMenu() {
 	fmt.Println("---------恭喜XXX登录成功---------")
 	fmt.Println("-------1.显示在线用户列表--------")
 	fmt.Println("-----------2.发送广播消息-----------")
-	fmt.Println("-----------3.消息列表-----------")
+	fmt.Println("-----------3.私发消息-----------")
 	fmt.Println("-----------4.退出系统-----------")
 	fmt.Println("请选择(1-4):")
 
 	var key int
 	fmt.Scan(&key)
 
-	var content string
-	sp := SmsProcess{}
-
 	switch key {
 	case 1:
 		userMgr.outputOnlineUsers() //显示在线用户列表
 	case 2:
 		//进行群聊的发送
+		var content string
+		sp := SmsProcess{
+			User: curUser.User,
+			conn: curUser.Conn,
+		}
 		fmt.Println("请输入你想说的话：")
 		fmt.Scan(&content)
 
 		sp.SendGroupMes(content)
 
 	case 3:
-		fmt.Println("3333") //消息列表
+		var toUserId int
+		var content string
+		sp := SmsProcess{
+			User: curUser.User,
+			conn: curUser.Conn,
+		}
+		fmt.Println("请输入你要发送的用户ID:")
+		fmt.Scan(&toUserId)
+		fmt.Println("请输入你想说的话：")
+		fmt.Scan(&content)
+		sp.SendToUserMes(toUserId, content)
 	case 4:
 		fmt.Println("444") //退出系统
 		os.Exit(0)
@@ -84,6 +96,19 @@ func continueProcess(Conn net.Conn) {
 			}
 		case message.PongMesType:
 			//能收到pongMes 就说明一次心跳成功
+		case message.SmsToUserTransferMesType: //收到的别人发来的私信消息
+			err = outputToUserMes(&mes)
+			if err != nil {
+				fmt.Println("outputToUserMes err=", err)
+				return
+			}
+		case message.SmsToUserResMesType: //收到服务端返回的私信响应信息
+			sp := SmsProcess{}
+			err = sp.ServeToUserResMes(&mes)
+			if err != nil {
+				fmt.Println("ServeToUserResMes err=", err)
+				return
+			}
 		default:
 			fmt.Println("消息类型错误")
 		}
