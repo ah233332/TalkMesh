@@ -1,15 +1,18 @@
 package message
 
 const (
-	LoginMesType            = "LoginMes"
-	LoginResMesType         = "LoginResMes"
-	RegisterMesType         = "RegisterMes"
-	RegisterResMesType      = "RegisterResMes"
-	NotifyUserStatusMesType = "NotifyUserStatusMes"
-	SmsMessageType          = "SmsMessage"
-	SmsTransferMesType      = "SmsTransferMes"
-	PingMesType             = "PingMes"
-	PongMesType             = "PongMes"
+	LoginMesType             = "LoginMes"
+	LoginResMesType          = "LoginResMes"
+	RegisterMesType          = "RegisterMes"
+	RegisterResMesType       = "RegisterResMes"
+	NotifyUserStatusMesType  = "NotifyUserStatusMes"
+	SmsMessageType           = "SmsMessage"
+	SmsTransferMesType       = "SmsTransferMes"
+	PingMesType              = "PingMes"
+	PongMesType              = "PongMes"
+	SmsToUserMesType         = "SmsToUserMes"
+	SmsToUserTransferMesType = "SmsToUserTransferMes"
+	SmsToUserResMesType      = "SmsToUserResMes"
 )
 
 type Message struct {
@@ -60,7 +63,7 @@ type NotifyUserStatusMes struct {
 
 }
 
-// 群发或私聊的信息
+// 群发的请求信息
 type SmsMessage struct {
 	UserId     int    `json:"userId"`
 	UserName   string `json:"userName"`
@@ -74,6 +77,37 @@ type SmsTransferMes struct {
 	UserName   string `json:"userName"`
 	UserStatus int    `json:"status"`
 	Content    string `json:"content"`
+}
+
+// 私聊的请求信息 客户端->服务端
+type SmsToUserMes struct {
+	UserId     int    `json:"userId"`
+	UserName   string `json:"userName"`
+	UserStatus int    `json:"status"`
+
+	ToUserId int `json:"toUserId"`
+
+	Content string `json:"content"`
+}
+
+// 私聊的信息转发消息 服务端转发给其他客户端
+type SmsToUserTransferMes struct {
+	UserId     int    `json:"userId"`
+	UserName   string `json:"userName"`
+	UserStatus int    `json:"status"`
+
+	ToUserId int `json:"toUserId"`
+
+	Content string `json:"content"`
+}
+
+// 私聊的请求返回信息 服务端返回客户端
+type SmsToUserResMes struct {
+	Code  int    `json:"code"`
+	Error string `json:"error"`
+	//200 说明发送成功
+	//400 目标用户不在线
+	//505 未知错误
 }
 
 // 用来做心跳的消息
