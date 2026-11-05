@@ -10,17 +10,19 @@ import (
 	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/ah233332/TalkMesh/common/utils"
 	"github.com/ah233332/TalkMesh/serve/model"
+	"github.com/gomodule/redigo/redis"
 )
 
 type UserProcess struct {
-	Conn   net.Conn
-	UserId int
+	Conn     net.Conn
+	UserId   int
+	UserName string
 }
 
 // 通过 json.Unmarshal 将 mes.Data 还原为 LoginMes，取出 UserId 和 UserPwd，并调用 MyUserDao.Login 查询 Redis。
 // 根据返回的 user 和 err 填充 LoginResMes.Code 与 Error，区分登录成功、密码错误、用户不存在和未知错误。
 // 最后将 LoginResMes 序列化到外层 Message.Data，并通过 Transfer.WritePkg 把处理结果返回客户端。
-func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
+func (up *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	//1.先从mes中取出mes data,并直接反序列化成LoginMes
 	var loginmes message.LoginMes
 	err = json.Unmarshal([]byte(mes.Data), &loginmes)
@@ -36,7 +38,7 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	var loginResMesData message.LoginResMes
 
 	//需要到redis数据库去验证登录
-	_, err = model.MyUserDao.Login(loginmes.UserId, loginmes.UserPwd)
+	user, err := model.MyUserDao.Login(loginmes.UserId, loginmes.UserPwd)
 
 	if err != nil {
 		switch err {
@@ -53,18 +55,21 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	} else {
 		loginResMesData.Code = 200 //登录成功
 
-		//登陆成功后的用户放入userMgr中
-		u.UserId = loginmes.UserId
-		userMgr.AddOnlineUser(u)
+		//1.登陆成功后的用户放入userMgr中
+		up.UserId = user.UserId
+		up.UserName = user.UserName
+		userMgr.AddOnlineUser(up)
 
-		//把自己上线的信息发送给其他人
-		u.NotifyOtherOnlineUser(loginmes.UserId, message.UserOnline)
+		//2.把自己上线的信息发送给其他人
+		up.NotifyOtherOnlineUser(loginmes.UserId, message.UserOnline)
 
-		//把当前在线用户的id，全都放入loginResMes.UsersId
+		//3.把当前在线用户的id，全都放入loginResMes.UsersId
 		//遍历UserMgr.onlineUsers的副本
 		for _, up := range userMgr.Snapshot() {
 			loginResMesData.UserIds = append(loginResMesData.UserIds, up.UserId)
 		}
+		loginResMesData.UserName = user.UserName
+
 	}
 
 	data, err := json.Marshal(loginResMesData)
@@ -86,7 +91,7 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	//此时data就是要发送出的内容
 
 	tf := &utils.Transfer{
-		Conn: u.Conn,
+		Conn: up.Conn,
 	}
 	//发送data返回到客户端
 	err = tf.WritePkg(data)
@@ -94,11 +99,18 @@ func (u *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 		fmt.Println("writePkg err=", err)
 		return
 	}
+
+	//4.处理离线消息
+	//登录成功时，才推送离线消息
+	if loginResMesData.Code == 200 {
+		up.RangeOffLines()
+	}
+
 	return
 
 }
 
-func (u *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
+func (up *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 	//1.把mes数据反序列化整出来
 	var registerMes message.RegisterMes
 	err = json.Unmarshal([]byte(mes.Data), &registerMes)
@@ -152,7 +164,7 @@ func (u *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 	//此时data就是准备发送的内容
 
 	tf := utils.Transfer{
-		Conn: u.Conn,
+		Conn: up.Conn,
 	}
 
 	err = tf.WritePkg(data)
@@ -163,9 +175,49 @@ func (u *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 	return
 }
 
+// 用来处理离线消息的函数方法
+func (up *UserProcess) RangeOffLines() {
+	redisConn := model.MyUserDao.Pool.Get()
+	defer redisConn.Close()
+
+	key := fmt.Sprintf("offlines:%d", up.UserId)
+	datas, err := redis.Strings(redisConn.Do("lrange", key, 0, -1))
+	if err != nil {
+		fmt.Println("redis lrange key err=", err)
+		return
+	}
+
+	if len(datas) == 0 {
+		return
+	}
+
+	tf := utils.Transfer{
+		Conn: up.Conn,
+	}
+
+	count := 0
+	for _, data := range datas {
+		err = tf.WritePkg([]byte(data))
+		if err != nil {
+			fmt.Println("writepkg transferMes err=", err)
+			break
+		}
+		count++
+	}
+
+	if count == len(datas) {
+		_, err = redisConn.Do("del", key)
+		if err != nil {
+			fmt.Println("redis del key err=", err)
+			return
+		}
+	}
+
+}
+
 // 通知所有在线用户的方法
 // userId要通知其他的在线好友(目前无好友功能，即为全部用户)，通知状态信息
-func (u *UserProcess) NotifyOtherOnlineUser(userId int, statue int) {
+func (up *UserProcess) NotifyOtherOnlineUser(userId int, statue int) {
 	//遍历onlineUsers,然后一个个发送NotifyUserStatusMes
 	for _, up := range userMgr.Snapshot() {
 		//先过滤自己
@@ -180,8 +232,8 @@ func (u *UserProcess) NotifyOtherOnlineUser(userId int, statue int) {
 
 // 用来服务NotifyOtherOnlineUser的函数方法，
 // 主要做了打包信息并发送的功能
-func (u *UserProcess) serverNotifyOther(userId int, statue int) {
-	data, err := u.creatNotifyMes(userId, statue)
+func (up *UserProcess) serverNotifyOther(userId int, statue int) {
+	data, err := up.creatNotifyMes(userId, statue)
 	if err != nil {
 		fmt.Println("creatNotifyMes err=", err)
 		return
@@ -189,7 +241,7 @@ func (u *UserProcess) serverNotifyOther(userId int, statue int) {
 	//此时data就是可直接发送的信息
 	//发送信息
 	tf := utils.Transfer{
-		Conn: u.Conn,
+		Conn: up.Conn,
 	}
 	err = tf.WritePkg(data)
 	if err != nil {
@@ -201,7 +253,7 @@ func (u *UserProcess) serverNotifyOther(userId int, statue int) {
 
 // 用来服务serverNotifyOther的函数方法，
 // 主要功能是打包通知其他人上线或下线等状态的信息，避免重复打包
-func (u *UserProcess) creatNotifyMes(userId int, statue int) (data []byte, err error) {
+func (up *UserProcess) creatNotifyMes(userId int, statue int) (data []byte, err error) {
 	var mes message.Message
 	mes.Type = message.NotifyUserStatusMesType
 

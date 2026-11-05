@@ -15,8 +15,9 @@ import (
 )
 
 type Processor struct {
-	Conn   net.Conn
-	UserId int
+	Conn     net.Conn
+	UserId   int
+	UserName string
 }
 
 // 通过 mes.Type 判断业务类型，创建持有当前 Conn 的 UserProcess，并将登录消息交给 ServerProcessLogin 处理。
@@ -33,7 +34,10 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			fmt.Println("ServerProcessLogin err=", err)
 			return
 		}
+
+		//登录成功后给pr赋值
 		pr.UserId = up.UserId
+		pr.UserName = up.UserName
 	case message.RegisterMesType: //注册请求
 		up := process.UserProcess{
 			Conn: pr.Conn,
@@ -44,7 +48,10 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			return
 		}
 	case message.SmsMessageType: //群聊广播请求
-		sp := process.SmsProcess{}
+		sp := process.SmsProcess{
+			UserId:   pr.UserId,
+			UserName: pr.UserName,
+		}
 		err = sp.ServeGroupMes(mes)
 		if err != nil {
 			fmt.Println("ServerGroupMes err=", err)
@@ -62,7 +69,9 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 		}
 	case message.SmsToUserMesType: //私聊请求
 		sp := process.SmsProcess{
-			Conn: pr.Conn,
+			Conn:     pr.Conn,
+			UserId:   pr.UserId,
+			UserName: pr.UserName,
 		}
 		err = sp.ServeToUserMes(mes)
 		if err != nil {

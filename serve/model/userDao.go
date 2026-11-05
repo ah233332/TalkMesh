@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ah233332/TalkMesh/common/message"
+
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -15,21 +16,21 @@ var (
 )
 
 type UserDao struct {
-	pool *redis.Pool
+	Pool *redis.Pool
 }
 
 // 通过传入的 Redis 连接池 pool 构造 UserDao，并返回其指针。
 // 该对象将连接池保存在内部，后续查询用户和校验密码时可以直接复用连接。
 func NewUserDao(pool *redis.Pool) (userDao *UserDao) {
 	userDao = &UserDao{
-		pool: pool,
+		Pool: pool,
 	}
 	return
 }
 
 // 通过 conn.Do("hget", "users", id) 从 users 哈希中读取指定 ID 的 JSON 字符串。
 // 命中后使用 json.Unmarshal 将其还原为 User；遇到 redis.ErrNil 时转换为 ERROR_USER_NOTEXISTS，其他错误原样返回。
-func (ud *UserDao) getUserById(conn redis.Conn, id int) (user *message.User, err error) {
+func (ud *UserDao) GetUserById(conn redis.Conn, id int) (user *message.User, err error) {
 	//给定Id,去redis中查询该用户
 	res, err := redis.String(conn.Do("hget", "users", id))
 	if err != nil {
@@ -54,10 +55,10 @@ func (ud *UserDao) getUserById(conn redis.Conn, id int) (user *message.User, err
 // 查询成功后比较 user.UserPwd 与 userPwd，不一致时返回 ERROR_USER_PWD，一致时返回 user 供上层生成登录响应。
 func (ud *UserDao) Login(userId int, userPwd string) (user *message.User, err error) {
 	//从链接池中取一个连接
-	conn := ud.pool.Get()
+	conn := ud.Pool.Get()
 	defer conn.Close()
 
-	user, err = ud.getUserById(conn, userId)
+	user, err = ud.GetUserById(conn, userId)
 	if err != nil {
 		fmt.Println("getUserById err=", err)
 		return
@@ -74,10 +75,10 @@ func (ud *UserDao) Login(userId int, userPwd string) (user *message.User, err er
 }
 
 func (ud *UserDao) Register(user *message.User) (err error) {
-	conn := ud.pool.Get()
+	conn := ud.Pool.Get()
 	defer conn.Close()
 
-	_, err = ud.getUserById(conn, user.UserId)
+	_, err = ud.GetUserById(conn, user.UserId)
 	//err为空说明数据库找到了相同id用户
 	//err为ERROR_USER_NOTEXISTS，说明改id未注册
 	switch err {
