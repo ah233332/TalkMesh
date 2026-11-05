@@ -22,17 +22,18 @@ type Message struct {
 
 // 登录信息
 type LoginMes struct {
-	UserId   int    `json:"userId"`   //用户ID
-	UserPwd  string `json:"userPwd"`  //用户密码
-	UserName string `json:"userName"` //用户名字
+	UserId  int    `json:"userId"`  //用户ID
+	UserPwd string `json:"userPwd"` //用户密码
 }
 
 // 登录返回信息
 type LoginResMes struct {
-	UserIds []int  `json:"userIds"` //增加字段，保存用户id的切片
-	Code    int    `json:"code"`    //返回状态码
-	Error   string `json:"error"`   //错误信息
-	//500表示用户未注册 200表示登录成功 403密码错误 505未知错误
+	UserIds  []int  `json:"userIds"` //增加字段，保存用户id的切片
+	UserName string `json:"userName"`
+	Code     int    `json:"code"`  //返回状态码
+	Error    string `json:"error"` //错误信息
+	//500表示用户未注册 200表示登录成功
+	//403密码错误 505未知错误
 }
 
 // 注册信息
@@ -105,9 +106,10 @@ type SmsToUserTransferMes struct {
 type SmsToUserResMes struct {
 	Code  int    `json:"code"`
 	Error string `json:"error"`
-	//200 说明发送成功
-	//400 目标用户不在线
-	//505 未知错误
+	//200 说明发送成功 201 成功发送离线消息
+	//400 目标用户不在线 401 用户未登录
+	//402 发送对象错误 403 发送者身份不一致
+	//405 目标用户不存在 505 未知错误
 }
 
 // 用来做心跳的消息
