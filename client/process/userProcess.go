@@ -87,12 +87,6 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 		for _, v := range loginResMes.UserIds {
 			fmt.Println("用户id:\t", v)
 
-			//完成客户端的onlineUsers的初始化
-			// user := &message.User{
-			// 	UserId:     v,
-			// 	UserName:   loginMex.UserName,
-			// 	UserStatus: message.UserOnline,
-			// }
 			userMgr.markOnline(v)
 
 		}
@@ -101,7 +95,7 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 		//完成客户端的CurUser的初始化
 		curUser.Conn = conn
 		curUser.UserId = userId
-		curUser.UserName = loginMex.UserName
+		curUser.UserName = loginResMes.UserName
 		curUser.UserStatus = message.UserOnline
 
 		//这是一个持续监听服务器消息的协程

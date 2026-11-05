@@ -29,6 +29,7 @@ func main() {
 		case 1:
 			fmt.Println("请输入用户Id：")
 			fmt.Scan(&userId)
+
 			fmt.Println("请输入密码：")
 			fmt.Scan(&userPwd)
 			err := up.Login(userId, userPwd)
