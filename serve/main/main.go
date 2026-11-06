@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ah233332/TalkMesh/serve/model"
+	"github.com/ah233332/TalkMesh/serve/web"
 )
 
 // 通过全局 pool 调用 NewUserDao 创建用户数据访问对象，并赋值给 model.MyUserDao。
@@ -34,6 +35,8 @@ func main() {
 		return
 	}
 	defer listen.Close()
+
+	go web.Start("127.0.0.1:8900")
 
 	for {
 		fmt.Println("等待连接中...")
