@@ -28,10 +28,9 @@ type LoginMes struct {
 
 // 登录返回信息
 type LoginResMes struct {
-	UserIds  []int  `json:"userIds"` //增加字段，保存用户id的切片
-	UserName string `json:"userName"`
-	Code     int    `json:"code"`  //返回状态码
-	Error    string `json:"error"` //错误信息
+	Users []User `json:"users"` //增加字段，保存用户切片
+	Code  int    `json:"code"`  //返回状态码
+	Error string `json:"error"` //错误信息
 	//500表示用户未注册 200表示登录成功
 	//403密码错误 505未知错误
 }
@@ -59,9 +58,10 @@ const (
 // 状态变化信息
 // 为了配合服务端向客户端推送用户状态变化的消息
 type NotifyUserStatusMes struct {
-	UserId int `json:"userId"`
-	Status int `json:"status"` //用户状态
-
+	UserId   int    `json:"userId"`
+	UserName string `json:"userName"`
+	Status   int    `json:"status"` //用户状态
+	//1 在线 2离线 3忙碌
 }
 
 // 群发的请求信息
