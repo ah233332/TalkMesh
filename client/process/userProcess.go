@@ -84,18 +84,19 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 		fmt.Println("登录成功！！！")
 		//登陆成功后，显示当前在线用户列表，遍历UserIds
 		fmt.Println("当前在线用户列表如下：")
-		for _, v := range loginResMes.UserIds {
-			fmt.Println("用户id:\t", v)
+		for _, v := range loginResMes.Users {
+			fmt.Printf("用户:%s(%d)\t", v.UserName, v.UserId)
+			userMgr.markOnline(v.UserId, v.UserName)
 
-			userMgr.markOnline(v)
-
+			if v.UserId == userId {
+				curUser.UserName = v.UserName
+			}
 		}
 		fmt.Println()
 
 		//完成客户端的CurUser的初始化
 		curUser.Conn = conn
 		curUser.UserId = userId
-		curUser.UserName = loginResMes.UserName
 		curUser.UserStatus = message.UserOnline
 
 		//这是一个持续监听服务器消息的协程
@@ -120,7 +121,7 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 // 任一连接、序列化、发送或响应解析步骤失败时都会返回对应的 err。
 func (up *UserProcess) Register(userId int, userPwd string, userName string) (err error) {
 	//0.先判断用户要注册的信息是否合法
-	if userId <= 0 || userName == "" || userPwd == "" {
+	if userId <= 0 || userName == "" || userPwd == "" || userPwd == "0" {
 		fmt.Println("注册信息不合法，请重新输入")
 		return
 	}

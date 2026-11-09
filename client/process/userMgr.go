@@ -39,7 +39,7 @@ func (um *UserMgr) Snapshot() []*message.User {
 func (um *UserMgr) outputOnlineUsers() {
 	fmt.Println("当前用户列表：")
 	for _, user := range um.Snapshot() {
-		fmt.Printf("用户id:%d  状态：%d\n", user.UserId, user.UserStatus)
+		fmt.Printf("用户:%s(%d)  状态：%d\n", user.UserName, user.UserId, user.UserStatus)
 	}
 }
 
@@ -49,7 +49,7 @@ func (um *UserMgr) updateUserStatus(notifyUserStatusMes *message.NotifyUserStatu
 	switch notifyUserStatusMes.Status {
 	case message.UserOnline:
 		//调用发放
-		um.markOnline(notifyUserStatusMes.UserId)
+		um.markOnline(notifyUserStatusMes.UserId, notifyUserStatusMes.UserName)
 	case message.UserOffline:
 		um.deleteUser(notifyUserStatusMes.UserId)
 	default:
@@ -60,7 +60,7 @@ func (um *UserMgr) updateUserStatus(notifyUserStatusMes *message.NotifyUserStatu
 	um.outputOnlineUsers()
 }
 
-func (um *UserMgr) markOnline(userId int) {
+func (um *UserMgr) markOnline(userId int, userName string) {
 	um.mu.Lock()
 	defer um.mu.Unlock()
 
@@ -72,6 +72,7 @@ func (um *UserMgr) markOnline(userId int) {
 
 	um.onlineUsers[userId] = &message.User{
 		UserId:     userId,
+		UserName:   userName,
 		UserStatus: message.UserOnline,
 	}
 }
