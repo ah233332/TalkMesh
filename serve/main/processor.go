@@ -93,10 +93,11 @@ func (pr *Processor) processTCP() (err error) {
 		//广播
 		if pr.UserId != 0 {
 			up := process.UserProcess{
-				Conn:   pr.Conn,
-				UserId: pr.UserId,
+				Conn:     pr.Conn,
+				UserId:   pr.UserId,
+				UserName: pr.UserName,
 			}
-			up.NotifyOtherOnlineUser(up.UserId, message.UserOffline)
+			up.NotifyOtherOnlineUser(up.UserId, message.UserOffline, up.UserName)
 		}
 	}()
 	//断线前把自己从在线列表中删除

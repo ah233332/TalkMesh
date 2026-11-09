@@ -1,1 +1,150 @@
 package web
+
+import (
+	//安全随机数
+	"crypto/rand"
+	"fmt"
+	"time"
+
+	//hex 十六进制与字节之间的转换
+	"encoding/hex"
+	"encoding/json"
+	"net"
+	"sync"
+
+	"github.com/ah233332/TalkMesh/common/message"
+	"github.com/ah233332/TalkMesh/common/utils"
+)
+
+type Session struct {
+	Conn     net.Conn
+	UserId   int
+	UserName string
+	//浏览器http与tcp连接读取时间不一致,需要预存信息
+	Msgs []message.Message
+	mu   sync.Mutex
+}
+
+var (
+	sessMu   sync.RWMutex
+	sessions = make(map[string]*Session)
+)
+
+func addSession(sid string, s *Session) {
+	sessMu.Lock()
+	defer sessMu.Unlock()
+
+	sessions[sid] = s
+
+}
+
+func getSession(sid string) (*Session, bool) {
+	sessMu.RLock()
+	defer sessMu.RUnlock()
+
+	sess, ok := sessions[sid]
+	return sess, ok
+}
+
+// 生成一个随机sessionID,给cookie充当用户身份验证
+func newSessionID() string {
+	b := make([]byte, 16)
+	//把随机数塞满b
+	_, err := rand.Read(b)
+	if err != nil {
+		return ""
+	}
+	//cookie只收文本，随机[]byte有可能包含空格、特殊符号等,需要转码
+
+	//十六进制处理后成字符串
+	//hex只是其中一种编码方式，还有base64 base32等等
+	//hex是文本编码中最省事的一种
+	return hex.EncodeToString(b)
+
+}
+
+// 浏览器的心跳保活
+// web.go->serve
+func (ss *Session) sendping() {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		data, err := buildpingMes()
+		if err != nil {
+			fmt.Println("组装pingmes失败，err=", err)
+			return
+		}
+
+		tf := utils.Transfer{
+			Conn: ss.Conn,
+		}
+
+		err = tf.WritePkg(data)
+		if err != nil {
+			fmt.Println("writePkg data err=", err)
+			return
+		}
+	}
+
+}
+
+// 组装pingmes信息
+func buildpingMes() (data []byte, err error) {
+	var mes message.Message
+	mes.Type = message.PingMesType
+
+	var pingmes message.PingMes
+	pingmes.Timestamp = time.Now().UnixMilli()
+
+	data, err = json.Marshal(pingmes)
+	if err != nil {
+		fmt.Println("marshal err=", err)
+		return nil, err
+	}
+	mes.Data = string(data)
+
+	data, err = json.Marshal(mes)
+	if err != nil {
+		fmt.Println("marshal err=", err)
+		return nil, err
+	}
+
+	return data, err
+
+}
+
+// 读服务端发送的信息，并存入Msgs
+func (ss *Session) readloop() {
+	tf := utils.Transfer{
+		Conn:    ss.Conn,
+		Timeout: 30 * time.Second,
+	}
+
+	for {
+		mes, err := tf.ReadPkg()
+		if err != nil {
+			fmt.Println("readPkg err=", err)
+			return
+		}
+
+		//跳过心跳的返回信息
+		if mes.Type == message.PongMesType {
+			continue
+		}
+
+		ss.mu.Lock()
+		ss.Msgs = append(ss.Msgs, mes)
+		ss.mu.Unlock()
+	}
+}
+
+// 复制一份消息列表
+func (ss *Session) snapshot() []message.Message {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	list := make([]message.Message, len(ss.Msgs))
+	copy(list, ss.Msgs)
+	return list
+}

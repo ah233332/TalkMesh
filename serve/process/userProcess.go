@@ -61,14 +61,17 @@ func (up *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 		userMgr.AddOnlineUser(up)
 
 		//2.把自己上线的信息发送给其他人
-		up.NotifyOtherOnlineUser(loginmes.UserId, message.UserOnline)
+		up.NotifyOtherOnlineUser(loginmes.UserId, message.UserOnline, up.UserName)
 
-		//3.把当前在线用户的id，全都放入loginResMes.UsersId
+		//3.把当前在线用户，全都放入loginResMes.UsersId
 		//遍历UserMgr.onlineUsers的副本
 		for _, up := range userMgr.Snapshot() {
-			loginResMesData.UserIds = append(loginResMesData.UserIds, up.UserId)
+			loginResMesData.Users = append(loginResMesData.Users, message.User{
+				UserId:     up.UserId,
+				UserName:   up.UserName,
+				UserStatus: message.UserOnline,
+			})
 		}
-		loginResMesData.UserName = user.UserName
 
 	}
 
@@ -126,7 +129,7 @@ func (up *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 	var registerResMesData message.RegisterResMes
 
 	//3.进行函数操作
-	if registerMes.User.UserId <= 0 || registerMes.User.UserPwd == "" || registerMes.User.UserName == "" {
+	if registerMes.User.UserId <= 0 || registerMes.User.UserPwd == "" || registerMes.User.UserPwd == "0" || registerMes.User.UserName == "" {
 		registerResMesData.Code = 401
 		registerResMesData.Error = "用户ID必须为正数，密码和用户名不能为空"
 		// 这里不要 return，下面还要把 401 发回客户端
@@ -217,7 +220,7 @@ func (up *UserProcess) RangeOffLines() {
 
 // 通知所有在线用户的方法
 // userId要通知其他的在线好友(目前无好友功能，即为全部用户)，通知状态信息
-func (up *UserProcess) NotifyOtherOnlineUser(userId int, statue int) {
+func (up *UserProcess) NotifyOtherOnlineUser(userId int, statue int, userName string) {
 	//遍历onlineUsers,然后一个个发送NotifyUserStatusMes
 	for _, up := range userMgr.Snapshot() {
 		//先过滤自己
@@ -226,14 +229,14 @@ func (up *UserProcess) NotifyOtherOnlineUser(userId int, statue int) {
 		}
 		//开始通知，引出一个函数方法
 		//u是自己的userprocess up是其他人的userprocess
-		up.serverNotifyOther(userId, statue)
+		up.serverNotifyOther(userId, statue, userName)
 	}
 }
 
 // 用来服务NotifyOtherOnlineUser的函数方法，
 // 主要做了打包信息并发送的功能
-func (up *UserProcess) serverNotifyOther(userId int, statue int) {
-	data, err := up.creatNotifyMes(userId, statue)
+func (up *UserProcess) serverNotifyOther(userId int, statue int, userName string) {
+	data, err := up.creatNotifyMes(userId, statue, userName)
 	if err != nil {
 		fmt.Println("creatNotifyMes err=", err)
 		return
@@ -253,13 +256,14 @@ func (up *UserProcess) serverNotifyOther(userId int, statue int) {
 
 // 用来服务serverNotifyOther的函数方法，
 // 主要功能是打包通知其他人上线或下线等状态的信息，避免重复打包
-func (up *UserProcess) creatNotifyMes(userId int, statue int) (data []byte, err error) {
+func (up *UserProcess) creatNotifyMes(userId int, statue int, userName string) (data []byte, err error) {
 	var mes message.Message
 	mes.Type = message.NotifyUserStatusMesType
 
 	var notifyUserStatusMes message.NotifyUserStatusMes
 	notifyUserStatusMes.UserId = userId
 	notifyUserStatusMes.Status = statue
+	notifyUserStatusMes.UserName = userName
 
 	//将notifyUserStatusMes序列化
 	data, err = json.Marshal(notifyUserStatusMes)
