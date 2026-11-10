@@ -1,11 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TalkMesh 登录</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Welcome to TalkMesh</h1>
+  <main class="card">
+    <h1>TalkMesh</h1>
+    <form method="post" action="/login">
+      <input name="userId" placeholder="用户ID" autocomplete="off">
+      <input name="userPwd" type="password" placeholder="密码">
+      <button>登录</button>
+    </form>
+    <p class="muted"><a href="/register">没有账号？去注册</a></p>
+  </main>
 </body>
 </html>

@@ -16,6 +16,9 @@ import (
 	"github.com/ah233332/TalkMesh/common/utils"
 )
 
+// 每个会话最多保留的消息条数
+const maxMsgs = 200
+
 type Session struct {
 	Conn     net.Conn
 	UserId   int
@@ -148,6 +151,10 @@ func (ss *Session) readloop() {
 
 		ss.mu.Lock()
 		ss.Msgs = append(ss.Msgs, mes)
+		//只保留最近 maxMsgs 条，避免长时间挂机越积越多
+		if len(ss.Msgs) > maxMsgs {
+			ss.Msgs = ss.Msgs[len(ss.Msgs)-maxMsgs:]
+		}
 		ss.mu.Unlock()
 	}
 }

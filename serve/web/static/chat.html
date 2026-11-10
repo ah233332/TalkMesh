@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TalkMesh</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main class="card chat">
+  <h1>TalkMesh</h1>
+  <div class="layout">
+    <section class="left">
+      <form method="post" action="/sendall">
+        <input name="content" placeholder="说点什么">
+        <button>群发</button>
+      </form>
+      <form method="post" action="/sendone">
+        发给: <input name="toUserId" placeholder="对方ID">
+        内容: <input name="content">
+        <button>私聊</button>
+      </form>
+      <a href="/logout">退出</a>
+    </section>
+    <section class="right">
+      <ul id="messages"></ul>
+    </section>
+  </div>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

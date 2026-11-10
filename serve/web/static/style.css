@@ -1,0 +1,180 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 24px 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #f5f6fa;
+  color: #222;
+}
+
+.card {
+  max-width: 420px;
+  margin: 40px auto;
+  padding: 24px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0 0 16px;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: 4px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+
+li {
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: #f8fafc;
+  border-radius: 4px;
+  font-size: 14px;
+  word-break: break-all;
+}
+
+a {
+  color: #2563eb;
+}
+
+/* 聊天页：左边发送，右边消息 */
+.chat {
+  max-width: 960px;
+}
+
+.layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.left {
+  width: 300px;
+  flex: 0 0 300px;
+}
+
+.right {
+  flex: 1;
+  min-width: 0;
+}
+
+.right ul {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.left form {
+  margin-bottom: 12px;
+}
+
+.left a {
+  display: inline-block;
+  margin-top: 4px;
+}
+
+@media (max-width: 720px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .left {
+    width: 100%;
+    flex: none;
+  }
+}
+
+/* 消息气泡 */
+#messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#messages li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+.msg.me {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.msg.other {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.msg .who {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+
+.msg .bubble {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg.me .bubble {
+  background: #2563eb;
+  color: #fff;
+}
+
+.sys {
+  align-self: center;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.muted {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+}
