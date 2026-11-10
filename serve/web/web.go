@@ -24,6 +24,9 @@ func Start(addr string) error {
 	mux.HandleFunc("/", index)
 	mux.HandleFunc("/login", login)
 	mux.HandleFunc("/chat", chat)
+	mux.HandleFunc("/sendall", sendall)
+	mux.HandleFunc("/sendone", sendone)
+	mux.HandleFunc("/logout", logout)
 
 	//循环监听和服务
 	// 只有出错（端口被占用、监听失败）才返回
@@ -38,16 +41,16 @@ func Start(addr string) error {
 // r请求文本，把浏览器的请求解析成一个结构体方法，可以在go中解析操作浏览器的请求文本
 func index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `<!DOCTYPE html>
-<html>
-<body>
-  <h1>TalkMesh</h1>
-  <form method="post" action="/login">
-    <input name="userId" placeholder="用户ID">
-    <input name="userPwd" type="password" placeholder="密码">
-    <button>登录</button>
-  </form>
-</body>
-</html>`)
+  <html>
+	<body>
+		<h1>TalkMesh</h1>
+		<form method="post" action="/login">
+				<input name="userId" placeholder="用户ID">
+				<input name="userPwd" type="password" placeholder="密码">
+   			 <button>登录</button>
+ 		 </form>
+ 	 </body>
+  </html>`)
 }
 
 // 登录
@@ -166,7 +169,7 @@ func chat(w http.ResponseWriter, r *http.Request) {
 	//在session表单中验证cookie
 	sess, ok := getSession(cookie.Value)
 	if !ok {
-		fmt.Println("getSessin cookie err=", err)
+		fmt.Println("getSessin cookie err")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -250,4 +253,195 @@ func chat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	fmt.Fprint(w, "</ul>")
+
+	//点击发送群聊消息
+	fmt.Fprint(w, `<form method="post" action="/sendall">
+  <input name="content" placeholder="说点什么">
+  <button>群发</button>
+  </form>`)
+
+	//点击发送私聊消息
+	fmt.Fprint(w, `<form method="post" action="/sendone">
+  发给: <input name="toUserId" placeholder="对方ID">
+  内容: <input name="content">
+  <button>私聊</button>
+  </form>`)
+
+	//退出
+	fmt.Fprint(w, `<a href="/logout">退出</a>`)
+}
+
+// 发送群聊信息
+func sendall(w http.ResponseWriter, r *http.Request) {
+	//获取cookie
+	cookie, err := r.Cookie("sid")
+	if err != nil {
+		fmt.Println("get cookie err=", err)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	//验证cookie
+	session, ok := getSession(cookie.Value)
+	if !ok {
+		fmt.Println("check cookie err")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	//读取浏览器上的信息
+	r.ParseForm()
+	content := r.FormValue("content")
+	if content == "" {
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+
+	//封装群发信息
+	var mes message.Message
+	mes.Type = message.SmsMessageType
+	groupmes := message.SmsMessage{
+		UserId:     session.UserId,
+		UserName:   session.UserName,
+		UserStatus: message.UserOnline,
+		Content:    content,
+	}
+	data, err := json.Marshal(groupmes)
+	if err != nil {
+		fmt.Println("marshal groupmes err=", err)
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+
+	mes.Data = string(data)
+
+	data, err = json.Marshal(mes)
+	if err != nil {
+		fmt.Println("marshal mes err=", err)
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+	//此时data就是可直接发送的群发请求
+
+	tf := utils.Transfer{
+		Conn: session.Conn,
+	}
+	err = tf.WritePkg(data)
+	if err != nil {
+		fmt.Println("writePKG mes err=", err)
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/chat", http.StatusSeeOther)
+
+}
+
+// 发送私聊信息
+func sendone(w http.ResponseWriter, r *http.Request) {
+	//获取cookie
+	cookie, err := r.Cookie("sid")
+	if err != nil {
+		fmt.Println("get cookie err=", err)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	//验证cookie
+	session, ok := getSession(cookie.Value)
+	if !ok {
+		fmt.Println("check cookie err")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	//从浏览器上获取信息
+	r.ParseForm()
+	toUserId, err := strconv.Atoi(r.FormValue("toUserId"))
+	if err != nil {
+		fmt.Println("atio toUserID err=", err)
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+	content := r.FormValue("content")
+	if content == "" {
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+
+	//封装私聊信息
+	var mes message.Message
+	mes.Type = message.SmsToUserMesType
+	toOneMes := message.SmsToUserMes{
+		UserId:     session.UserId,
+		UserName:   session.UserName,
+		UserStatus: message.UserOnline,
+
+		ToUserId: toUserId,
+		Content:  content,
+	}
+
+	data, err := json.Marshal(toOneMes)
+	if err != nil {
+		fmt.Println("marshal toOneMes err=", err)
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+
+	mes.Data = string(data)
+
+	data, err = json.Marshal(mes)
+	if err != nil {
+		fmt.Println("marshal mes err=", err)
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+	//此时data就是可直接发送的群发请求
+
+	tf := utils.Transfer{
+		Conn: session.Conn,
+	}
+	err = tf.WritePkg(data)
+	if err != nil {
+		fmt.Println("writePKG mes err=", err)
+		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/chat", http.StatusSeeOther)
+}
+
+// 退出
+func logout(w http.ResponseWriter, r *http.Request) {
+	//获取cookie
+	cookie, err := r.Cookie("sid")
+	if err != nil {
+		fmt.Println("get cookie err=", err)
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	//验证cookie
+	_, ok := getSession(cookie.Value)
+	if !ok {
+		fmt.Println("check cookie err")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	//删除map记录，断开conn连接
+	delSession(cookie.Value)
+
+	//服务端让会话失效
+	//同时浏览器也要把旧凭证清理掉
+
+	//清除cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:   "sid",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

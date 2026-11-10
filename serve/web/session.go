@@ -46,6 +46,19 @@ func getSession(sid string) (*Session, bool) {
 	return sess, ok
 }
 
+// 删除会话
+func delSession(sid string) {
+	sessMu.Lock()
+	s, ok := sessions[sid]
+	delete(sessions, sid)
+	sessMu.Unlock()
+
+	if ok {
+		s.Conn.Close()
+	}
+
+}
+
 // 生成一个随机sessionID,给cookie充当用户身份验证
 func newSessionID() string {
 	b := make([]byte, 16)
