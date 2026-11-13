@@ -11,17 +11,23 @@
   <h1>TalkMesh</h1>
   <div class="layout">
     <section class="left">
+      <h2>在线用户</h2>
+      <ul id="users"></ul>
+
       <form method="post" action="/sendall">
         <input name="content" placeholder="说点什么">
         <button>群发</button>
       </form>
+
       <form method="post" action="/sendone">
-        发给: <input name="toUserId" placeholder="对方ID">
+        发给: <input id="toUserId" name="toUserId" placeholder="对方ID">
         内容: <input name="content">
         <button>私聊</button>
       </form>
+
       <a href="/logout">退出</a>
     </section>
+
     <section class="right">
       <ul id="messages"></ul>
     </section>

@@ -1,6 +1,8 @@
 let me = { userId: 0, userName: "" };
 
 const list = document.getElementById("messages");
+const userList = document.getElementById("users");
+const toUserIdInput = document.getElementById("toUserId");
 
 async function refresh() {
   try {
@@ -11,6 +13,7 @@ async function refresh() {
     const data = await resp.json();
     me = data.me || me;
     render(data.messages || []);
+    renderUsers(data.users || []);
   } catch (e) {
     // 网络抖动时忽略，下一轮再试
   }
@@ -62,6 +65,28 @@ function render(messages) {
   }
 }
 
+
+function renderUsers(users) {
+  userList.innerHTML = "";
+
+  for (const u of users) {
+    const li = document.createElement("li");
+    li.textContent = (u.userName || "未知") + "(" + u.userId + ")";
+    li.title = "点击填入私聊对象";
+
+    if (u.userId === me.userId) {
+      li.classList.add("self");
+    }
+
+    li.addEventListener("click", function () {
+      if (toUserIdInput) {
+        toUserIdInput.value = u.userId;
+      }
+    });
+
+    userList.appendChild(li);
+  }
+}
 
 refresh();
 setInterval(refresh, 2000);

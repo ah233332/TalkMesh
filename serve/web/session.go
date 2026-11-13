@@ -156,15 +156,47 @@ func (ss *Session) readloop() {
 			continue
 		}
 
+		//更新在线表
+		var online *message.User
+		var offlineId int
+		if mes.Type == message.NotifyUserStatusMesType {
+			var m message.NotifyUserStatusMes
+			if err := json.Unmarshal([]byte(mes.Data), &m); err != nil {
+				continue
+			}
+
+			//在线增加
+			if m.Status == message.UserOnline {
+				online = &message.User{
+					UserId:     m.UserId,
+					UserName:   m.UserName,
+					UserStatus: m.Status,
+				}
+			} else { //离线清除
+				offlineId = m.UserId
+			}
+
+		}
+
 		ss.mu.Lock()
+
+		if online != nil { //增加在线
+			ss.Users[online.UserId] = online
+		} else if offlineId != 0 { //清理离线
+			delete(ss.Users, offlineId)
+		}
+
+		//消息列表
 		ss.Msgs = append(ss.Msgs, storeMsg{
 			Meg: mes,
 			At:  time.Now(),
 		})
+
 		//只保留最近 maxMsgs 条，避免长时间挂机越积越多
 		if len(ss.Msgs) > maxMsgs {
 			ss.Msgs = ss.Msgs[len(ss.Msgs)-maxMsgs:]
 		}
+
 		ss.mu.Unlock()
 	}
 }
@@ -176,5 +208,19 @@ func (ss *Session) snapshot() []storeMsg {
 
 	list := make([]storeMsg, len(ss.Msgs))
 	copy(list, ss.Msgs)
+	return list
+}
+
+// 复制一份在线用户列表
+func (ss *Session) snapshotUsers() []message.User {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	list := make([]message.User, 0, len(ss.Users))
+
+	for _, v := range ss.Users {
+		list = append(list, *v)
+	}
+
 	return list
 }

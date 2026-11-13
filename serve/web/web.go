@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -143,10 +144,19 @@ func login(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+
+	users := make(map[int]*message.User, len(res.Users))
+	for i := range res.Users {
+		u := res.Users[i]
+		users[u.UserId] = &u
+	}
+
 	ss := &Session{
 		Conn:     conn,
 		UserId:   id,
 		UserName: userName,
+
+		Users: users,
 	}
 
 	//登录成功
@@ -271,6 +281,7 @@ type msgView struct {
 type messagesResp struct {
 	Me       msgView   `json:"me"`
 	Messages []msgView `json:"messages"`
+	Users    []msgView `json:"users"`
 }
 
 // statusText 把私聊结果码翻译成中文
@@ -355,6 +366,7 @@ func apiMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//遍历传输消息列表
 	msgs := ss.snapshot()
 	views := make([]msgView, 0, len(msgs))
 	for _, mes := range msgs {
@@ -363,9 +375,23 @@ func apiMessages(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	//遍历在线用户列表
+	users := ss.snapshotUsers()
+	sort.Slice(users, func(i, j int) bool {
+		return users[i].UserId < users[j].UserId
+	})
+	userViews := make([]msgView, 0, len(users))
+	for _, v := range users {
+		userViews = append(userViews, msgView{
+			UserId:   v.UserId,
+			UserName: v.UserName,
+		})
+	}
+
 	resp := messagesResp{
 		Me:       msgView{UserId: ss.UserId, UserName: ss.UserName},
 		Messages: views,
+		Users:    userViews,
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	data, _ := json.Marshal(resp)

@@ -184,3 +184,24 @@ a {
   font-size: 13px;
   color: #6b7280;
 }
+
+/* 在线用户列表 */
+#users {
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+#users li {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+#users li:hover {
+  background: #eef2ff;
+}
+
+#users li.self {
+  color: #2563eb;
+  font-weight: 600;
+}
