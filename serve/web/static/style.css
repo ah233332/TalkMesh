@@ -68,6 +68,12 @@ a {
 }
 
 /* 聊天页：左边发送，右边消息 */
+.time {
+  font-size: 12px;
+  color: #999;
+  margin-left: 6px;
+}
+
 .chat {
   max-width: 960px;
 }

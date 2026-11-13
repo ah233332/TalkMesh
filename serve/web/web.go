@@ -265,6 +265,7 @@ type msgView struct {
 	UserName string `json:"userName,omitempty"`
 	Content  string `json:"content,omitempty"`
 	Text     string `json:"text,omitempty"`
+	Time     string `json:"time"`
 }
 
 type messagesResp struct {
@@ -295,7 +296,7 @@ func statusText(code int) string {
 }
 
 // viewOf 把协议消息转换成前端好渲染的结构
-func (ss *Session) viewOf(mes message.Message) (msgView, bool) {
+func (ss *Session) viewOf(mes message.Message, at time.Time) (msgView, bool) {
 	switch mes.Type {
 	case message.SmsTransferMesType:
 		//群聊信息
@@ -303,14 +304,14 @@ func (ss *Session) viewOf(mes message.Message) (msgView, bool) {
 		if err := json.Unmarshal([]byte(mes.Data), &m); err != nil {
 			return msgView{}, false
 		}
-		return msgView{Type: "group", UserId: m.UserId, UserName: m.UserName, Content: m.Content}, true
+		return msgView{Type: "group", UserId: m.UserId, UserName: m.UserName, Content: m.Content, Time: at.Format("15:04")}, true
 	case message.SmsToUserTransferMesType:
 		//私聊信息
 		var m message.SmsToUserTransferMes
 		if err := json.Unmarshal([]byte(mes.Data), &m); err != nil {
 			return msgView{}, false
 		}
-		return msgView{Type: "private", UserId: m.UserId, UserName: m.UserName, Content: m.Content}, true
+		return msgView{Type: "private", UserId: m.UserId, UserName: m.UserName, Content: m.Content, Time: at.Format("15:04")}, true
 	case message.NotifyUserStatusMesType:
 		//状态变化信息
 		var m message.NotifyUserStatusMes
@@ -326,14 +327,14 @@ func (ss *Session) viewOf(mes message.Message) (msgView, bool) {
 		case message.UserBusyStatus:
 			text = "忙碌"
 		}
-		return msgView{Type: "notify", UserId: m.UserId, UserName: m.UserName, Text: text}, true
+		return msgView{Type: "notify", UserId: m.UserId, UserName: m.UserName, Text: text, Time: at.Format("15:04")}, true
 	case message.SmsToUserResMesType:
 		//私聊响应信息
 		var m message.SmsToUserResMes
 		if err := json.Unmarshal([]byte(mes.Data), &m); err != nil {
 			return msgView{}, false
 		}
-		return msgView{Type: "result", Text: statusText(m.Code)}, true
+		return msgView{Type: "result", Text: statusText(m.Code), Time: at.Format("15:04")}, true
 	default:
 		return msgView{}, false
 	}
@@ -357,7 +358,7 @@ func apiMessages(w http.ResponseWriter, r *http.Request) {
 	msgs := ss.snapshot()
 	views := make([]msgView, 0, len(msgs))
 	for _, mes := range msgs {
-		if v, ok := ss.viewOf(mes); ok {
+		if v, ok := ss.viewOf(mes.Meg, mes.At); ok {
 			views = append(views, v)
 		}
 	}

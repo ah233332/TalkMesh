@@ -19,13 +19,20 @@ import (
 // 每个会话最多保留的消息条数
 const maxMsgs = 200
 
+type storeMsg struct {
+	Meg message.Message
+	At  time.Time
+}
+
 type Session struct {
 	Conn     net.Conn
 	UserId   int
 	UserName string
 	//浏览器http与tcp连接读取时间不一致,需要预存信息
-	Msgs []message.Message
+	Msgs []storeMsg
 	mu   sync.Mutex
+
+	Users map[int]*message.User
 }
 
 var (
@@ -150,7 +157,10 @@ func (ss *Session) readloop() {
 		}
 
 		ss.mu.Lock()
-		ss.Msgs = append(ss.Msgs, mes)
+		ss.Msgs = append(ss.Msgs, storeMsg{
+			Meg: mes,
+			At:  time.Now(),
+		})
 		//只保留最近 maxMsgs 条，避免长时间挂机越积越多
 		if len(ss.Msgs) > maxMsgs {
 			ss.Msgs = ss.Msgs[len(ss.Msgs)-maxMsgs:]
@@ -160,11 +170,11 @@ func (ss *Session) readloop() {
 }
 
 // 复制一份消息列表
-func (ss *Session) snapshot() []message.Message {
+func (ss *Session) snapshot() []storeMsg {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
-	list := make([]message.Message, len(ss.Msgs))
+	list := make([]storeMsg, len(ss.Msgs))
 	copy(list, ss.Msgs)
 	return list
 }

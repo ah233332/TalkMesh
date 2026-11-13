@@ -24,6 +24,9 @@ function render(messages) {
 
   for (const m of messages) {
     const li = document.createElement("li");
+    const timeEl = document.createElement("span");
+    timeEl.className = "time";
+    timeEl.textContent = m.time || "";
 
     if (m.type === "group" || m.type === "private") {
       const mine = m.userId === me.userId;
@@ -36,6 +39,8 @@ function render(messages) {
         "(" + m.userId + ")" +
         (m.type === "private" ? " 私聊" : "");
 
+      who.appendChild(timeEl); 
+
       const bubble = document.createElement("div");
       bubble.className = "bubble";
       bubble.textContent = m.content || "";
@@ -46,7 +51,7 @@ function render(messages) {
       li.className = "sys";
       li.textContent =
         (m.userName ? m.userName + "(" + m.userId + ") " : "") +
-        (m.text || "");
+        (m.text || "")+" "+(m.time || "");
     }
 
     list.appendChild(li);
@@ -56,6 +61,7 @@ function render(messages) {
     list.scrollTop = list.scrollHeight;
   }
 }
+
 
 refresh();
 setInterval(refresh, 2000);
