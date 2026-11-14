@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ah233332/TalkMesh/common/message"
@@ -22,7 +23,10 @@ func ShowMenu() {
 	fmt.Println("请选择(1-4):")
 
 	var key int
-	fmt.Scan(&key)
+	key, err := strconv.Atoi(utils.Readline())
+	if err != nil {
+		return
+	}
 
 	switch key {
 	case 1:
@@ -35,8 +39,7 @@ func ShowMenu() {
 			conn: curUser.Conn,
 		}
 		fmt.Println("请输入你想说的话：")
-		fmt.Scan(&content)
-
+		content = utils.Readline()
 		sp.SendGroupMes(content)
 
 	case 3:
@@ -46,10 +49,14 @@ func ShowMenu() {
 			User: curUser.User,
 			conn: curUser.Conn,
 		}
+
 		fmt.Println("请输入你要发送的用户ID:")
-		fmt.Scan(&toUserId)
+		toUserId, err = strconv.Atoi(utils.Readline())
+		if err != nil {
+			return
+		}
 		fmt.Println("请输入你想说的话：")
-		fmt.Scan(&content)
+		content = utils.Readline()
 		sp.SendToUserMes(toUserId, content)
 	case 4:
 		fmt.Println("444") //退出系统
