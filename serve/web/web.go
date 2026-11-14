@@ -398,13 +398,27 @@ func apiMessages(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+// isFetch 判断请求是否由前端 fetch 发起
+func isFetch(r *http.Request) bool {
+	return r.Header.Get("X-Requested-With") == "fetch"
+}
+
+// sendReply 统一发送接口的收尾：fetch 请求只返回状态码，普通表单跳转页面
+func sendReply(w http.ResponseWriter, r *http.Request, code int, redirectTo string) {
+	if isFetch(r) {
+		w.WriteHeader(code)
+		return
+	}
+	http.Redirect(w, r, redirectTo, http.StatusSeeOther)
+}
+
 // 发送群聊信息
 func sendall(w http.ResponseWriter, r *http.Request) {
 	//获取cookie
 	cookie, err := r.Cookie("sid")
 	if err != nil {
 		fmt.Println("get cookie err=", err)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		sendReply(w, r, http.StatusUnauthorized, "/")
 		return
 	}
 
@@ -412,7 +426,7 @@ func sendall(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(cookie.Value)
 	if !ok {
 		fmt.Println("check cookie err")
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		sendReply(w, r, http.StatusUnauthorized, "/")
 		return
 	}
 
@@ -420,7 +434,7 @@ func sendall(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	content := r.FormValue("content")
 	if content == "" {
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusBadRequest, "/chat")
 		return
 	}
 
@@ -436,7 +450,7 @@ func sendall(w http.ResponseWriter, r *http.Request) {
 	data, err := json.Marshal(groupmes)
 	if err != nil {
 		fmt.Println("marshal groupmes err=", err)
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}
 
@@ -445,7 +459,7 @@ func sendall(w http.ResponseWriter, r *http.Request) {
 	data, err = json.Marshal(mes)
 	if err != nil {
 		fmt.Println("marshal mes err=", err)
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}
 	//此时data就是可直接发送的群发请求
@@ -456,11 +470,11 @@ func sendall(w http.ResponseWriter, r *http.Request) {
 	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("writePKG mes err=", err)
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}
 
-	http.Redirect(w, r, "/chat", http.StatusSeeOther)
+	sendReply(w, r, http.StatusNoContent, "/chat")
 
 }
 
@@ -470,7 +484,7 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("sid")
 	if err != nil {
 		fmt.Println("get cookie err=", err)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		sendReply(w, r, http.StatusUnauthorized, "/")
 		return
 	}
 
@@ -478,7 +492,7 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 	session, ok := getSession(cookie.Value)
 	if !ok {
 		fmt.Println("check cookie err")
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		sendReply(w, r, http.StatusUnauthorized, "/")
 		return
 	}
 
@@ -487,12 +501,12 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 	toUserId, err := strconv.Atoi(r.FormValue("toUserId"))
 	if err != nil {
 		fmt.Println("atio toUserID err=", err)
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusBadRequest, "/chat")
 		return
 	}
 	content := r.FormValue("content")
 	if content == "" {
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusBadRequest, "/chat")
 		return
 	}
 
@@ -511,7 +525,7 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 	data, err := json.Marshal(toOneMes)
 	if err != nil {
 		fmt.Println("marshal toOneMes err=", err)
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}
 
@@ -520,7 +534,7 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 	data, err = json.Marshal(mes)
 	if err != nil {
 		fmt.Println("marshal mes err=", err)
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}
 	//此时data就是可直接发送的群发请求
@@ -531,11 +545,11 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("writePKG mes err=", err)
-		http.Redirect(w, r, "/chat", http.StatusSeeOther)
+		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}
 
-	http.Redirect(w, r, "/chat", http.StatusSeeOther)
+	sendReply(w, r, http.StatusNoContent, "/chat")
 }
 
 // 退出

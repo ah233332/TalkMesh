@@ -88,5 +88,41 @@ function renderUsers(users) {
   }
 }
 
+
+
+async function sendForm(form) {
+  const body = new URLSearchParams(new FormData(form));
+
+  const resp = await fetch(form.action, {
+    method: "POST",
+    body: body,
+    headers: { "X-Requested-With": "fetch" },
+    credentials: "same-origin",
+  });
+
+  if (!resp.ok) {
+    console.log("发送失败", resp.status);
+    return;
+  }
+
+  form.reset();
+  refresh();
+}
+
+function bindSendForm(id) {
+  const form = document.getElementById(id);
+  if (!form) {
+    return;
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    sendForm(form);
+  });
+}
+
+bindSendForm("sendall-form");
+bindSendForm("sendone-form");
+
 refresh();
 setInterval(refresh, 2000);
