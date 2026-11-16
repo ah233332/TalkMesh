@@ -116,6 +116,14 @@ func continueProcess(Conn net.Conn) {
 				fmt.Println("ServeToUserResMes err=", err)
 				return
 			}
+		case message.SmsAckTrsMesType: //收到私信的回执信息,服务器转发来的
+			//能收到服务器转发的回执信息，说明私信发送成功
+			var ack message.SmsAckTrsMes
+			if err := json.Unmarshal([]byte(mes.Data), &ack); err != nil {
+				fmt.Println("unmarshal ack err=", err)
+				continue // 或 return
+			}
+			fmt.Printf("用户 %d 已收到你的私聊\n", ack.FromUserId)
 		default:
 			fmt.Println("消息类型错误")
 		}
