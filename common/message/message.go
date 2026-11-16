@@ -13,6 +13,8 @@ const (
 	SmsToUserMesType         = "SmsToUserMes"
 	SmsToUserTransferMesType = "SmsToUserTransferMes"
 	SmsToUserResMesType      = "SmsToUserResMes"
+	SmsAckMesType            = "SmsAckMes"
+	SmsAckTrsMesType         = "SmsAckTrsMes"
 )
 
 type Message struct {
@@ -121,4 +123,20 @@ type PingMes struct {
 // 服务端返回->客户端
 type PongMes struct {
 	Timestamp int64 `json:"timestamp"`
+}
+
+// 回执信息的请求信息 客户端B—>服务端
+type SmsAckMes struct {
+	FromUserId int `json:"fromUserId"`
+	//从哪发的ackMes(谁收到的私信)
+	ToUserId int `json:"toUserId"`
+	//原私信发送者id
+}
+
+// 回执信息的转发信息 服务端->客户端A
+type SmsAckTrsMes struct {
+	FromUserId int `json:"fromUserId"`
+	//从哪发的ackMes(谁收到的私信)
+	ToUserId int `json:"toUserId"`
+	//原私信发送者id
 }
