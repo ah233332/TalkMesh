@@ -78,6 +78,9 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			fmt.Println("ServeToUserMes err=", err)
 			return
 		}
+	case message.SmsAckMesType: //回执信息处理
+		ap := process.AckProcess{}
+		ap.ServeAckMes(mes)
 	default:
 		fmt.Println("消息类型不存在，无法处理...")
 	}
