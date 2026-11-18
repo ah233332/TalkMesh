@@ -156,6 +156,36 @@ func (ss *Session) readloop() {
 			continue
 		}
 
+		//收到私聊时，发送回执信息
+		if mes.Type == message.SmsToUserTransferMesType {
+			var toUsermes message.SmsToUserTransferMes
+			if err := json.Unmarshal([]byte(mes.Data), &toUsermes); err == nil {
+				var m message.Message
+				m.Type = message.SmsAckMesType
+
+				ackmes := message.SmsAckMes{
+					FromUserId:   ss.UserId,
+					FromUserName: ss.UserName,
+
+					ToUserId:   toUsermes.UserId,
+					ToUserName: toUsermes.UserName,
+				}
+
+				data, _ := json.Marshal(ackmes)
+
+				m.Data = string(data)
+
+				data, _ = json.Marshal(m)
+
+				tf := utils.Transfer{
+					Conn: ss.Conn,
+				}
+				if err := tf.WritePkg(data); err != nil {
+					fmt.Println("send ack err=", err)
+				}
+			}
+		}
+
 		//更新在线表
 		var online *message.User
 		var offlineId int

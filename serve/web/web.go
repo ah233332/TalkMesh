@@ -346,6 +346,13 @@ func (ss *Session) viewOf(mes message.Message, at time.Time) (msgView, bool) {
 			return msgView{}, false
 		}
 		return msgView{Type: "result", Text: statusText(m.Code), Time: at.Format("15:04")}, true
+	case message.SmsAckTrsMesType:
+		//私聊回执信息
+		var m message.SmsAckTrsMes
+		if err := json.Unmarshal([]byte(mes.Data), &m); err != nil {
+			return msgView{}, false
+		}
+		return msgView{Type: "result", UserId: m.ToUserId, Text: fmt.Sprintf("%s(%d) 已收到您的消息", m.FromUserName, m.FromUserId), Time: at.Format("15:04")}, true
 	default:
 		return msgView{}, false
 	}

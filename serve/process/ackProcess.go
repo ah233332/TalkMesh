@@ -9,6 +9,8 @@ import (
 )
 
 type AckProcess struct {
+	UserId   int
+	UserName string
 }
 
 // 用来处理回执信息的
@@ -20,16 +22,22 @@ func (ap *AckProcess) ServeAckMes(mes *message.Message) {
 		return
 	}
 
-	up, err := userMgr.GetOnlineUserById(ackmes.ToUserId)
+	//安全校验
+	if ap.UserId == 0 {
+		fmt.Println("未登录连接发送回执")
+		return
+	}
+
+	toup, err := userMgr.GetOnlineUserById(ackmes.ToUserId)
 	if err != nil {
 		fmt.Println("getonlineUser err=", err)
 		return
 	}
 
 	tf := utils.Transfer{
-		Conn: up.Conn,
+		Conn: toup.Conn,
 	}
-	data := creatAckResMes(ackmes)
+	data := ap.creatAckResMes(toup)
 	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("writepkg data err=", err)
@@ -37,13 +45,17 @@ func (ap *AckProcess) ServeAckMes(mes *message.Message) {
 	}
 }
 
-func creatAckResMes(ackmes message.SmsAckMes) []byte {
+func (ap *AckProcess) creatAckResMes(toup *UserProcess) []byte {
 	var mes message.Message
 	mes.Type = message.SmsAckTrsMesType
 
-	var acktfsmes message.SmsAckTrsMes
-	acktfsmes.FromUserId = ackmes.FromUserId
-	acktfsmes.ToUserId = ackmes.ToUserId
+	acktfsmes := message.SmsAckTrsMes{
+		FromUserId:   ap.UserId,
+		FromUserName: ap.UserName,
+
+		ToUserId:   toup.UserId,
+		ToUserName: toup.UserName,
+	}
 
 	data, err := json.Marshal(acktfsmes)
 	if err != nil {
