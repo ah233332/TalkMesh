@@ -156,3 +156,7 @@ type Message struct {
 ## 说明
 
 本项目用于学习 Go 网络编程、协议设计、并发与 Web 接入，尚未达到生产级聊天系统的标准。
+
+## 许可证
+
+[MIT](LICENSE)
