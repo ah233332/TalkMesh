@@ -127,16 +127,24 @@ type PongMes struct {
 
 // 回执信息的请求信息 客户端B—>服务端
 type SmsAckMes struct {
-	FromUserId int `json:"fromUserId"`
-	//从哪发的ackMes(谁收到的私信)
-	ToUserId int `json:"toUserId"`
-	//原私信发送者id
+	//A->B发信息
+	//B->A发回执 from为B
+	FromUserId   int    `json:"fromUserId"`
+	FromUserName string `json:"fromUserName"`
+
+	//B->A发回执 to为A
+	ToUserId   int    `json:"toUserId"`
+	ToUserName string `json:"toUserName"`
 }
 
 // 回执信息的转发信息 服务端->客户端A
 type SmsAckTrsMes struct {
-	FromUserId int `json:"fromUserId"`
-	//从哪发的ackMes(谁收到的私信)
-	ToUserId int `json:"toUserId"`
-	//原私信发送者id
+	//A->B发信息
+	//B->A发回执 from为B
+	FromUserId   int    `json:"fromUserId"`
+	FromUserName string `json:"fromUserName"`
+
+	//B->A发回执 to为A
+	ToUserId   int    `json:"toUserId"`
+	ToUserName string `json:"toUserName"`
 }
