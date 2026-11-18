@@ -121,9 +121,9 @@ func continueProcess(Conn net.Conn) {
 			var ack message.SmsAckTrsMes
 			if err := json.Unmarshal([]byte(mes.Data), &ack); err != nil {
 				fmt.Println("unmarshal ack err=", err)
-				continue // 或 return
+				continue
 			}
-			fmt.Printf("用户 %d 已收到你的私聊\n", ack.FromUserId)
+			fmt.Printf("用户 %s(%d) 已收到你的私聊\n", ack.FromUserName, ack.FromUserId)
 		default:
 			fmt.Println("消息类型错误")
 		}
