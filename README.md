@@ -7,7 +7,7 @@
 - **终端客户端**：注册、登录、在线用户列表、群聊、私聊、心跳保活，输入支持带空格内容，收到私聊后自动回执
 - **网页端**：注册、登录、左右分栏聊天页、在线用户列表、消息气泡、消息时间戳、发送无刷新、每 2 秒轮询刷新、群聊/私聊、回执提示、退出
 - **服务端**：同时监听 TCP `8899` 和 HTTP `8900`，网页层复用同一套登录、在线表、消息和离线逻辑
-- **基础可靠性**：包长校验、读写超时、心跳清理、离线队列、身份以服务端连接为准、私聊收到后回执
+- **基础可靠性**：包长校验、读写超时、心跳清理、离线队列、身份以服务端连接为准、消息 ID、私聊收到后回执
 
 ## 截图
 
@@ -120,9 +120,11 @@ type Message struct {
 | `LoginMes` / `LoginResMes` | 双向 | 登录；响应带 `code` 和在线用户列表 `users` |
 | `RegisterMes` / `RegisterResMes` | 双向 | 注册；`code` 200 成功 / 400 已存在 / 401 参数不合法 |
 | `NotifyUserStatusMes` | 服务端 → 客户端 | 上下线通知，含 `userId` / `userName` / `status` |
-| `SmsMessage` / `SmsTransferMes` | 双向 | 群聊请求与转发 |
+| `SmsGPMessage` / `SmsTransferMes` | 双向 | 群聊请求与转发 |
 | `SmsToUserMes` / `SmsToUserTransferMes` / `SmsToUserResMes` | 双向 | 私聊请求、转发、结果 |
-| `SmsAckMes` / `SmsAckTrsMes` | 双向 | 私聊回执：接收方确认收到，服务端转发给原发送者 |
+| `SmsAckMes` / `SmsAckTrsMes` | 双向 | 私聊回执：接收方确认收到，服务端转发给原发送者，带回被确认消息的 `messageId` |
+
+群聊、私聊消息都带 `messageId`（格式 `用户ID-序号`），由发送方生成，服务端原样转发；回执带回这个 ID，用来对应“哪一条消息被收到”。
 | `PingMes` / `PongMes` | 双向 | 心跳 |
 
 协议细节见 `common/message/message.go`。
@@ -147,7 +149,7 @@ type Message struct {
 - 同一账号多端登录会互相覆盖在线表，旧连接可能残留到超时或手动退出。
 - 密码明文存 Redis，尚未使用 bcrypt。
 - Cookie 未设置 `HttpOnly` / `Secure`，仅适合本机学习。
-- 私聊回执暂未携带消息 ID，连续发送多条时无法区分对应哪一条；服务端也尚未校验“回执人是否真的收到过该消息”。超时重发、去重尚未实现。
+- 私聊回执已带消息 ID，但服务端尚未校验“回执人是否真的收到过该消息”；超时重发、按 ID 去重尚未实现。
 
 ## 开发计划
 
