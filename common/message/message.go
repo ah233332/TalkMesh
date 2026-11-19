@@ -6,7 +6,7 @@ const (
 	RegisterMesType          = "RegisterMes"
 	RegisterResMesType       = "RegisterResMes"
 	NotifyUserStatusMesType  = "NotifyUserStatusMes"
-	SmsMessageType           = "SmsMessage"
+	SmsGPMessageType         = "SmsGPMessage"
 	SmsTransferMesType       = "SmsTransferMes"
 	PingMesType              = "PingMes"
 	PongMesType              = "PongMes"
@@ -67,11 +67,13 @@ type NotifyUserStatusMes struct {
 }
 
 // 群发的请求信息
-type SmsMessage struct {
+type SmsGPMessage struct {
 	UserId     int    `json:"userId"`
 	UserName   string `json:"userName"`
 	UserStatus int    `json:"status"`
 	Content    string `json:"content"`
+
+	MessageId string `json:"messageId"`
 }
 
 // 服务端处理群聊信息后，发送给其他人的信息类型
@@ -80,6 +82,8 @@ type SmsTransferMes struct {
 	UserName   string `json:"userName"`
 	UserStatus int    `json:"status"`
 	Content    string `json:"content"`
+
+	MessageId string `json:"messageId"`
 }
 
 // 私聊的请求信息 客户端->服务端
@@ -91,6 +95,8 @@ type SmsToUserMes struct {
 	ToUserId int `json:"toUserId"`
 
 	Content string `json:"content"`
+
+	MessageId string `json:"messageId"`
 }
 
 // 私聊的信息转发消息 服务端转发给其他客户端
@@ -102,6 +108,8 @@ type SmsToUserTransferMes struct {
 	ToUserId int `json:"toUserId"`
 
 	Content string `json:"content"`
+
+	MessageId string `json:"messageId"`
 }
 
 // 私聊的请求返回信息 服务端返回客户端
@@ -135,6 +143,8 @@ type SmsAckMes struct {
 	//B->A发回执 to为A
 	ToUserId   int    `json:"toUserId"`
 	ToUserName string `json:"toUserName"`
+
+	MessageId string `json:"messageId"`
 }
 
 // 回执信息的转发信息 服务端->客户端A
@@ -147,4 +157,6 @@ type SmsAckTrsMes struct {
 	//B->A发回执 to为A
 	ToUserId   int    `json:"toUserId"`
 	ToUserName string `json:"toUserName"`
+
+	MessageId string `json:"messageId"`
 }
