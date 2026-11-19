@@ -18,13 +18,16 @@ type SmsProcess struct {
 func (sp *SmsProcess) SendGroupMes(content string) (err error) {
 	//封装一个可发送的Mes信息
 	var mes message.Message
-	mes.Type = message.SmsMessageType
+	mes.Type = message.SmsGPMessageType
 
-	var smsMes message.SmsMessage
-	smsMes.Content = content
-	smsMes.UserId = sp.UserId         //id
-	smsMes.UserName = sp.UserName     //名称
-	smsMes.UserStatus = sp.UserStatus //状态
+	var smsMes = message.SmsGPMessage{
+		Content:    content,
+		UserId:     sp.UserId,
+		UserName:   sp.UserName,
+		UserStatus: sp.UserStatus,
+
+		MessageId: utils.CreatMesId(sp.UserId),
+	}
 
 	data, err := json.Marshal(smsMes)
 	if err != nil {
@@ -65,6 +68,8 @@ func (sp *SmsProcess) SendToUserMes(toUserId int, content string) {
 		UserId:     sp.UserId,
 		UserName:   sp.UserName,
 		UserStatus: sp.UserStatus,
+
+		MessageId: utils.CreatMesId(sp.UserId),
 	}
 
 	data, err := json.Marshal(smstoUserMes)

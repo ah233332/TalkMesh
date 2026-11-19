@@ -32,7 +32,7 @@ func outputToUserMes(mes *message.Message) (err error) {
 	fmt.Printf("%s(%d)给你私发了一条消息:%s\n", ToUserTransferMes.UserName, ToUserTransferMes.UserId, ToUserTransferMes.Content)
 
 	//插入回执信息函数
-	data := CreatAckMes(curUser.UserId, curUser.UserName, ToUserTransferMes.UserId, ToUserTransferMes.UserName)
+	data := CreatAckMes(ToUserTransferMes.MessageId, curUser.UserId, curUser.UserName, ToUserTransferMes.UserId, ToUserTransferMes.UserName)
 	tf := utils.Transfer{
 		Conn: curUser.Conn,
 	}

@@ -11,7 +11,7 @@ type AckProcess struct {
 }
 
 // formId B 谁收到的私信(自己)  toId A 回执给谁(私信发送者)
-func CreatAckMes(formId int, fromName string, toId int, toName string) []byte {
+func CreatAckMes(mesID string, formId int, fromName string, toId int, toName string) []byte {
 	var mes message.Message
 	mes.Type = message.SmsAckMesType
 
@@ -20,6 +20,8 @@ func CreatAckMes(formId int, fromName string, toId int, toName string) []byte {
 		FromUserName: fromName,
 		ToUserId:     toId,
 		ToUserName:   toName,
+
+		MessageId: mesID,
 	}
 
 	data, err := json.Marshal(ackmes)
