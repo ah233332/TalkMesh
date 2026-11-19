@@ -19,7 +19,7 @@ type SmsProcess struct {
 // 处理群聊消息的核心函数方法
 func (sp *SmsProcess) ServeGroupMes(mes *message.Message) (err error) {
 	//1.先把消息解出来
-	var smsMes message.SmsMessage
+	var smsMes message.SmsGPMessage
 	err = json.Unmarshal([]byte(mes.Data), &smsMes)
 	if err != nil {
 		fmt.Println("unmarshal mes data err=", err)

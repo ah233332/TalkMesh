@@ -37,7 +37,7 @@ func (ap *AckProcess) ServeAckMes(mes *message.Message) {
 	tf := utils.Transfer{
 		Conn: toup.Conn,
 	}
-	data := ap.creatAckResMes(toup)
+	data := ap.creatAckTrsMes(ackmes, toup)
 	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("writepkg data err=", err)
@@ -45,7 +45,7 @@ func (ap *AckProcess) ServeAckMes(mes *message.Message) {
 	}
 }
 
-func (ap *AckProcess) creatAckResMes(toup *UserProcess) []byte {
+func (ap *AckProcess) creatAckTrsMes(ackmes message.SmsAckMes, toup *UserProcess) []byte {
 	var mes message.Message
 	mes.Type = message.SmsAckTrsMesType
 
@@ -55,6 +55,8 @@ func (ap *AckProcess) creatAckResMes(toup *UserProcess) []byte {
 
 		ToUserId:   toup.UserId,
 		ToUserName: toup.UserName,
+
+		MessageId: ackmes.MessageId,
 	}
 
 	data, err := json.Marshal(acktfsmes)

@@ -169,6 +169,8 @@ func (ss *Session) readloop() {
 
 					ToUserId:   toUsermes.UserId,
 					ToUserName: toUsermes.UserName,
+
+					MessageId: toUsermes.MessageId,
 				}
 
 				data, _ := json.Marshal(ackmes)

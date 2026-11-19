@@ -352,7 +352,7 @@ func (ss *Session) viewOf(mes message.Message, at time.Time) (msgView, bool) {
 		if err := json.Unmarshal([]byte(mes.Data), &m); err != nil {
 			return msgView{}, false
 		}
-		return msgView{Type: "result", UserId: m.ToUserId, Text: fmt.Sprintf("%s(%d) 已收到您的消息", m.FromUserName, m.FromUserId), Time: at.Format("15:04")}, true
+		return msgView{Type: "result", UserId: m.ToUserId, Text: fmt.Sprintf("%s(%d) 已收到你的消息%s", m.FromUserName, m.FromUserId, m.MessageId), Time: at.Format("15:04")}, true
 	default:
 		return msgView{}, false
 	}
@@ -447,12 +447,14 @@ func sendall(w http.ResponseWriter, r *http.Request) {
 
 	//封装群发信息
 	var mes message.Message
-	mes.Type = message.SmsMessageType
-	groupmes := message.SmsMessage{
+	mes.Type = message.SmsGPMessageType
+	groupmes := message.SmsGPMessage{
 		UserId:     session.UserId,
 		UserName:   session.UserName,
 		UserStatus: message.UserOnline,
 		Content:    content,
+
+		MessageId: utils.CreatMesId(session.UserId),
 	}
 	data, err := json.Marshal(groupmes)
 	if err != nil {
@@ -527,6 +529,8 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 
 		ToUserId: toUserId,
 		Content:  content,
+
+		MessageId: utils.CreatMesId(session.UserId),
 	}
 
 	data, err := json.Marshal(toOneMes)

@@ -47,7 +47,7 @@ func (pr *Processor) ServeProcessMes(mes *message.Message) (err error) {
 			fmt.Println("ServerProcessRegister err=", err)
 			return
 		}
-	case message.SmsMessageType: //群聊广播请求
+	case message.SmsGPMessageType: //群聊广播请求
 		sp := process.SmsProcess{
 			UserId:   pr.UserId,
 			UserName: pr.UserName,
