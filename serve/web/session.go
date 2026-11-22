@@ -33,12 +33,112 @@ type Session struct {
 	mu   sync.Mutex
 
 	Users map[int]*message.User
+
+	Pending  map[string]*pendingMes
+	Reported map[string]bool
+}
+
+type pendingMes struct {
+	Data   []byte
+	SentAt time.Time
+	Count  int
 }
 
 var (
 	sessMu   sync.RWMutex
 	sessions = make(map[string]*Session)
 )
+
+func (ss *Session) addPending(mesId string, data []byte) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	ss.Pending[mesId] = &pendingMes{
+		Data:   data,
+		SentAt: time.Now(),
+		Count:  0,
+	}
+}
+
+func (ss *Session) removePending(mesId string) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	delete(ss.Pending, mesId)
+}
+
+func (ss *Session) snapshotIDs() []string {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	var list []string
+	for i := range ss.Pending {
+		list = append(list, i)
+	}
+	return list
+}
+
+const (
+	notExist   = 1 //不存在
+	maxout     = 2 //超过最大重发数
+	timenotout = 3 //没超时
+	timeout    = 4 //超时
+)
+
+func (ss *Session) takePending(mesId string, maxCount int, maxTime time.Duration) ([]byte, bool, int) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	var state int
+	//判断id是否存在待办
+	pendingMes, ok := ss.Pending[mesId]
+	if !ok {
+		state = notExist
+		return nil, false, state
+	}
+
+	//判断是否超过最大重发数
+	if pendingMes.Count >= maxCount {
+		state = maxout
+		return nil, false, state
+	}
+
+	//判断是否超时(超过3s为超时)
+	//还没到 3 秒 → return nil, false（不重发）；
+	//超过 3 秒 → 继续往下走，计数、重发
+	if time.Since(pendingMes.SentAt) < maxTime {
+		//没超时不重发
+		state = timenotout
+		return nil, false, state
+	}
+
+	pendingMes.Count++
+	pendingMes.SentAt = time.Now()
+	data := append([]byte(nil), pendingMes.Data...)
+	//超时重发
+	state = timeout
+	return data, true, state
+
+}
+
+func (ss *Session) markReported(mesId string) bool {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	if ss.Reported[mesId] {
+		return false
+	}
+
+	ss.Reported[mesId] = true
+	return true
+}
+
+func (ss *Session) delReported(mesId string) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+
+	delete(ss.Reported, mesId)
+}
 
 func addSession(sid string, s *Session) {
 	sessMu.Lock()
@@ -137,6 +237,45 @@ func buildpingMes() (data []byte, err error) {
 
 }
 
+// 持续监听ackMes 进行重发信息
+func (ss *Session) retryAckMes() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	tf := utils.Transfer{
+		Conn: ss.Conn,
+	}
+	for range ticker.C {
+		for _, v := range ss.snapshotIDs() {
+			data, ok, state := ss.takePending(v, 3, 3*time.Second)
+
+			if !ok {
+				//不在待办列表、超时、超次数,就直接删除
+				switch state {
+				case notExist:
+				case maxout:
+					ss.removePending(v)
+					ss.delReported(v)
+					fmt.Printf("消息 %s 重发 3 次仍未确认，已放弃\n", v)
+				case timenotout:
+				default:
+					fmt.Println("retryAckMes未知错误")
+				}
+			} else if ok && state == timeout {
+				//进行重发信息
+				err := tf.WritePkg(data)
+				if err != nil {
+					fmt.Println("writePkg retryMes err=", err)
+					ss.removePending(v)
+					ss.delReported(v)
+					return
+				}
+			}
+		}
+	}
+
+}
+
 // 读服务端发送的信息，并存入Msgs
 func (ss *Session) readloop() {
 	tf := utils.Transfer{
@@ -145,6 +284,8 @@ func (ss *Session) readloop() {
 	}
 
 	for {
+		show := true //默认存进Msgs
+
 		mes, err := tf.ReadPkg()
 		if err != nil {
 			fmt.Println("readPkg err=", err)
@@ -156,7 +297,7 @@ func (ss *Session) readloop() {
 			continue
 		}
 
-		//收到私聊时，发送回执信息
+		//收到服务器转发的私聊时，发送回执信息
 		if mes.Type == message.SmsToUserTransferMesType {
 			var toUsermes message.SmsToUserTransferMes
 			if err := json.Unmarshal([]byte(mes.Data), &toUsermes); err == nil {
@@ -185,6 +326,28 @@ func (ss *Session) readloop() {
 				if err := tf.WritePkg(data); err != nil {
 					fmt.Println("send ack err=", err)
 				}
+			}
+		}
+
+		//收到私聊响应信息时
+		if mes.Type == message.SmsToUserResMesType {
+			var res message.SmsToUserResMes
+			if err := json.Unmarshal([]byte(mes.Data), &res); err == nil {
+				if res.Code != 200 {
+					ss.removePending(res.MessageId)
+					ss.delReported(res.MessageId)
+				} else if !ss.markReported(res.MessageId) {
+					show = false // 第二次及以后的 200，不显示
+				}
+			}
+		}
+
+		//收到回执信息时
+		if mes.Type == message.SmsAckTrsMesType {
+			var ack message.SmsAckTrsMes
+			if err := json.Unmarshal([]byte(mes.Data), &ack); err == nil {
+				ss.removePending(ack.MessageId)
+				ss.delReported(ack.MessageId)
 			}
 		}
 
@@ -219,14 +382,17 @@ func (ss *Session) readloop() {
 		}
 
 		//消息列表
-		ss.Msgs = append(ss.Msgs, storeMsg{
-			Meg: mes,
-			At:  time.Now(),
-		})
+		if show {
+			ss.Msgs = append(ss.Msgs, storeMsg{
+				Meg: mes,
+				At:  time.Now(),
+			})
 
-		//只保留最近 maxMsgs 条，避免长时间挂机越积越多
-		if len(ss.Msgs) > maxMsgs {
-			ss.Msgs = ss.Msgs[len(ss.Msgs)-maxMsgs:]
+			//只保留最近 maxMsgs 条，避免长时间挂机越积越多
+			if len(ss.Msgs) > maxMsgs {
+				ss.Msgs = ss.Msgs[len(ss.Msgs)-maxMsgs:]
+			}
+
 		}
 
 		ss.mu.Unlock()

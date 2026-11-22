@@ -156,7 +156,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 		UserId:   id,
 		UserName: userName,
 
-		Users: users,
+		Users:    users,
+		Pending:  make(map[string]*pendingMes),
+		Reported: make(map[string]bool),
 	}
 
 	//登录成功
@@ -173,6 +175,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	//开启读取服务端发送的信息
 	go ss.readloop()
+
+	//开启监听回执信息，重发
+	go ss.retryAckMes()
 
 	//开启心跳协程
 	go ss.sendping()
@@ -553,9 +558,11 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 	tf := utils.Transfer{
 		Conn: session.Conn,
 	}
+	session.addPending(toOneMes.MessageId, data)
 	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("writePKG mes err=", err)
+		session.removePending(toOneMes.MessageId)
 		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}
