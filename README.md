@@ -123,11 +123,21 @@ type Message struct {
 | `SmsGPMessage` / `SmsTransferMes` | 双向 | 群聊请求与转发 |
 | `SmsToUserMes` / `SmsToUserTransferMes` / `SmsToUserResMes` | 双向 | 私聊请求、转发、结果 |
 | `SmsAckMes` / `SmsAckTrsMes` | 双向 | 私聊回执：接收方确认收到，服务端转发给原发送者，带回被确认消息的 `messageId` |
-
-群聊、私聊消息都带 `messageId`（格式 `用户ID-序号`），由发送方生成，服务端原样转发；回执带回这个 ID，用来对应“哪一条消息被收到”。
 | `PingMes` / `PongMes` | 双向 | 心跳 |
 
+群聊、私聊消息都带 `messageId`（格式 `用户ID-序号`），由发送方生成，服务端原样转发；回执带回这个 ID，用来对应“哪一条消息被收到”。
+
 协议细节见 `common/message/message.go`。
+
+## 消息可靠性
+
+1. 发送方为每条私聊生成 `messageId`，**发送前**登记到待确认表；
+2. 服务端回 `200`（在线转发成功）或 `201`（已存离线）；
+3. 接收方收到私聊后回 `SmsAckMes`，带回原消息的 `messageId`；
+4. 发送方收到回执后删除待确认项；3 秒内没收到就重发，最多 3 次；
+5. 重发 3 次仍未确认，打印“已放弃”，不再重发。
+
+已知不足：接收方尚未按 `messageId` 去重，重发期间可能看到重复消息；`201` 的离线消息不重发。
 
 ## 网页接口
 
