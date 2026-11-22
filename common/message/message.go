@@ -120,6 +120,7 @@ type SmsToUserResMes struct {
 	//400 目标用户不在线 401 用户未登录
 	//402 发送对象错误 403 发送者身份不一致
 	//405 目标用户不存在 505 未知错误
+	MessageId string `json:"messageId"`
 }
 
 // 用来做心跳的消息
