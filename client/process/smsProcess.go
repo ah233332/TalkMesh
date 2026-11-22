@@ -62,6 +62,9 @@ func (sp *SmsProcess) SendToUserMes(toUserId int, content string) {
 	var mes message.Message
 	mes.Type = message.SmsToUserMesType
 
+	//消息id
+	messageID := utils.CreatMesId(sp.UserId)
+
 	smstoUserMes := message.SmsToUserMes{
 		ToUserId:   toUserId,
 		Content:    content,
@@ -69,7 +72,7 @@ func (sp *SmsProcess) SendToUserMes(toUserId int, content string) {
 		UserName:   sp.UserName,
 		UserStatus: sp.UserStatus,
 
-		MessageId: utils.CreatMesId(sp.UserId),
+		MessageId: messageID,
 	}
 
 	data, err := json.Marshal(smstoUserMes)
@@ -87,12 +90,17 @@ func (sp *SmsProcess) SendToUserMes(toUserId int, content string) {
 	}
 	//data为可直接发送的私聊请求
 
+	//把消息加入待办列表
+	addPending(messageID, data)
+
 	tf := utils.Transfer{
 		Conn: sp.conn,
 	}
 	err = tf.WritePkg(data)
 	if err != nil {
 		fmt.Println("write SmsMes err=", err)
+		//发送失败就删除列表
+		removePending(messageID)
 		return
 	}
 
@@ -109,22 +117,32 @@ func (sp *SmsProcess) ServeToUserResMes(mes *message.Message) (err error) {
 
 	switch toUserResMes.Code {
 	case 200:
-		fmt.Println("成功发送私聊信息")
+		if markReported(toUserResMes.MessageId) {
+			fmt.Println("成功发送私聊信息")
+		}
 	case 201:
+		removePending(toUserResMes.MessageId)
 		fmt.Println("目标用户不在线，成功发送离线消息")
 	case 400:
+		removePending(toUserResMes.MessageId)
 		fmt.Println("该用户不在线")
 	case 401:
+		removePending(toUserResMes.MessageId)
 		fmt.Println("该用户未登录")
 	case 402:
+		removePending(toUserResMes.MessageId)
 		fmt.Println("发送对象错误")
 	case 403:
+		removePending(toUserResMes.MessageId)
 		fmt.Println("发送者身份不一致")
 	case 405:
+		removePending(toUserResMes.MessageId)
 		fmt.Println("目标用户不存在")
 	case 505:
+		removePending(toUserResMes.MessageId)
 		fmt.Println("未知错误")
 	default:
+		removePending(toUserResMes.MessageId)
 		fmt.Println("???")
 	}
 	return

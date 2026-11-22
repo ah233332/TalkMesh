@@ -106,6 +106,9 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 		pp := PingProcess{}
 		go pp.SendPingMes(conn)
 
+		//这是一个持续等待ack消息的协程，用于核验与重发消息
+		go retryAckMes(conn)
+
 		for {
 			ShowMenu()
 		}

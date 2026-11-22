@@ -3,10 +3,37 @@ package process
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/ah233332/TalkMesh/common/message"
 	"github.com/ah233332/TalkMesh/common/utils"
 )
+
+var (
+	reportMu sync.Mutex
+	reported = make(map[string]bool)
+)
+
+func markReported(mesId string) bool {
+	reportMu.Lock()
+	defer reportMu.Unlock()
+
+	if reported[mesId] {
+		return false
+	}
+
+	reported[mesId] = true
+	return true
+
+}
+
+func delReported(mesId string) {
+	reportMu.Lock()
+	defer reportMu.Unlock()
+
+	delete(reported, mesId)
+
+}
 
 // 解析服务端转发来的群发消息，并把发送者、内容打印到控制台。
 func outputGroupMes(mes *message.Message) (err error) {

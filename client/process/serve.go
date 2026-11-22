@@ -123,6 +123,8 @@ func continueProcess(Conn net.Conn) {
 				fmt.Println("unmarshal ack err=", err)
 				continue
 			}
+			removePending(ack.MessageId)
+			delReported(ack.MessageId)
 			fmt.Printf("用户 %s(%d) 已收到消息%s\n", ack.FromUserName, ack.FromUserId, ack.MessageId)
 		default:
 			fmt.Println("消息类型错误")
