@@ -85,7 +85,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 	//安全校验
 	if sp.UserId == 0 { //是否登录
 		err = model.ERROR_USER_NOTLOGIN
-		err = sp.toUserResMes(err, mes)
+		err = sp.toUserResMes(err, mes, toUserMes.MessageId)
 		if err != nil {
 			fmt.Println("toUserResMes err=", err)
 			return
@@ -94,7 +94,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 	}
 	if sp.UserId != toUserMes.UserId { //发送者信息是否一致
 		err = model.ERROR_USER_MISMATCH
-		err = sp.toUserResMes(err, mes)
+		err = sp.toUserResMes(err, mes, toUserMes.MessageId)
 		if err != nil {
 			fmt.Println("toUserResMes err=", err)
 			return
@@ -103,7 +103,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 	}
 	if toUserMes.ToUserId == sp.UserId { //判断发送者是否为自己
 		err = model.ERROR_SEND_USER
-		err = sp.toUserResMes(err, mes)
+		err = sp.toUserResMes(err, mes, toUserMes.MessageId)
 		if err != nil {
 			fmt.Println("toUserResMes err=", err)
 			return
@@ -119,7 +119,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 	if redisErr != nil {
 		if redisErr != model.ERROR_USER_NOTEXISTS {
 			err = model.ERROR_SERVE_REDIS
-			err = sp.toUserResMes(err, mes)
+			err = sp.toUserResMes(err, mes, toUserMes.MessageId)
 			if err != nil {
 				fmt.Println("toUserResMes err=", err)
 				return
@@ -127,7 +127,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 			return
 		} else {
 			err = redisErr
-			err = sp.toUserResMes(err, mes)
+			err = sp.toUserResMes(err, mes, toUserMes.MessageId)
 			if err != nil {
 				fmt.Println("toUserResMes err=", err)
 				return
@@ -145,7 +145,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 		err = sp.transferOffMes(&toUserMes)
 		if err != nil {
 			//发送离线消息失败
-			err = sp.toUserResMes(err, mes)
+			err = sp.toUserResMes(err, mes, toUserMes.MessageId)
 			if err != nil {
 				fmt.Println("toUserResMes err=", err)
 				return
@@ -153,7 +153,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 			return
 		} else {
 			//成功发送离线消息
-			err = sp.toUserResMes(model.SUS_SEND_OFFLINE, mes)
+			err = sp.toUserResMes(model.SUS_SEND_OFFLINE, mes, toUserMes.MessageId)
 			if err != nil {
 				fmt.Println("toUserResMes err=", err)
 				return
@@ -167,7 +167,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 		err = sp.transferToUserMes(&toUserMes, up)
 		if err != nil {
 			//转发信息失败
-			err = sp.toUserResMes(err, mes)
+			err = sp.toUserResMes(err, mes, toUserMes.MessageId)
 			if err != nil {
 				fmt.Println("toUserResMes err=", err)
 				return
@@ -175,7 +175,7 @@ func (sp *SmsProcess) ServeToUserMes(mes *message.Message) (err error) {
 			return
 		} else {
 			//成功转发信息
-			err = sp.toUserResMes(err, mes)
+			err = sp.toUserResMes(err, mes, toUserMes.MessageId)
 			if err != nil {
 				fmt.Println("toUserResMes err=", err)
 				return
@@ -216,7 +216,7 @@ func (sp *SmsProcess) transferToUserMes(toUserMes *message.SmsToUserMes, up *Use
 }
 
 // 服务端返回客户端的响应信息
-func (sp *SmsProcess) toUserResMes(err error, mes *message.Message) error {
+func (sp *SmsProcess) toUserResMes(err error, mes *message.Message, messageID string) error {
 	//封装返回客户端的信息
 	mes.Type = message.SmsToUserResMesType
 	var toUserResMes message.SmsToUserResMes
@@ -248,6 +248,8 @@ func (sp *SmsProcess) toUserResMes(err error, mes *message.Message) error {
 	} else {
 		toUserResMes.Code = 200 //发送成功
 	}
+
+	toUserResMes.MessageId = messageID
 
 	data, err := json.Marshal(toUserResMes)
 	if err != nil {
