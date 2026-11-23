@@ -104,9 +104,9 @@ func continueProcess(Conn net.Conn) {
 		case message.PongMesType:
 			//能收到pongMes 就说明一次心跳成功
 		case message.SmsToUserTransferMesType: //收到的别人发来的私信消息
-			err = outputToUserMes(&mes)
+			err = serveToUserTrsMes(&mes)
 			if err != nil {
-				fmt.Println("outputToUserMes err=", err)
+				fmt.Println("serveTouserTrsMes err=", err)
 				return
 			}
 		case message.SmsToUserResMesType: //收到服务端返回的私信响应信息
