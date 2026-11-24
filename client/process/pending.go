@@ -11,7 +11,7 @@ import (
 
 var (
 	pendingMu sync.Mutex
-	pending   = make(map[string]*pendingMes)
+	pending   = make(map[string]*pendingMes) //等待回执信息的表
 )
 
 type pendingMes struct {

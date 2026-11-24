@@ -13,10 +13,10 @@ const maxseen = 1000
 
 var (
 	reportMu sync.Mutex
-	reported = make(map[string]bool) //待办信息
+	reported = make(map[string]bool) //标记响应信息是否打印
 
 	seenMu   sync.Mutex
-	seen     = make(map[string]bool)      //去重信息
+	seen     = make(map[string]bool)      //记录信息，用来去重
 	seenlist = make([]string, 0, maxseen) //记录信息顺序，用来淘汰
 )
 
