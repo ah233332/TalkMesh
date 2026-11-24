@@ -34,8 +34,11 @@ type Session struct {
 
 	Users map[int]*message.User
 
-	Pending  map[string]*pendingMes
-	Reported map[string]bool
+	Pending  map[string]*pendingMes //等待回执信息
+	Reported map[string]bool        //标记是否打印响应信息
+
+	Seen     map[string]bool //记录信息，用来去重
+	Seenlist []string        //标记顺序，用来删去重表
 }
 
 type pendingMes struct {
@@ -300,31 +303,53 @@ func (ss *Session) readloop() {
 		//收到服务器转发的私聊时，发送回执信息
 		if mes.Type == message.SmsToUserTransferMesType {
 			var toUsermes message.SmsToUserTransferMes
-			if err := json.Unmarshal([]byte(mes.Data), &toUsermes); err == nil {
-				var m message.Message
-				m.Type = message.SmsAckMesType
 
-				ackmes := message.SmsAckMes{
-					FromUserId:   ss.UserId,
-					FromUserName: ss.UserName,
+			err := json.Unmarshal([]byte(mes.Data), &toUsermes)
+			if err != nil {
+				fmt.Println("unmarshal toUsermes err=", err)
+				continue
+			}
 
-					ToUserId:   toUsermes.UserId,
-					ToUserName: toUsermes.UserName,
-
-					MessageId: toUsermes.MessageId,
+			var mesId = toUsermes.MessageId //取出消息ID
+			//加锁查去重表
+			ss.mu.Lock()
+			ok := ss.Seen[mesId]
+			if ok {
+				//存在说明打印输出过了，不重复打印
+				ss.mu.Unlock()
+				show = false
+				//发送ACK回执信息
+				err = sendAckMes(toUsermes, ss.UserId, ss.UserName, ss.Conn)
+				if err != nil {
+					fmt.Println("sendAckmes err=", err)
 				}
 
-				data, _ := json.Marshal(ackmes)
+			} else {
+				//不存在则登记去重表，打印内容
+				ss.Seen[mesId] = true
+				ss.Seenlist = append(ss.Seenlist, mesId)
 
-				m.Data = string(data)
-
-				data, _ = json.Marshal(m)
-
-				tf := utils.Transfer{
-					Conn: ss.Conn,
+				//删除旧的消息内容
+				if len(ss.Seenlist) > maxseen {
+					oldest := ss.Seenlist[0]
+					ss.Seenlist = ss.Seenlist[1:]
+					delete(ss.Seen, oldest)
 				}
-				if err := tf.WritePkg(data); err != nil {
-					fmt.Println("send ack err=", err)
+
+				//防止内存占用越滚越多
+				if cap(ss.Seenlist) > 2*len(ss.Seenlist) {
+					// 底层数组浪费超过一半，压一次
+					compact := make([]string, len(ss.Seenlist))
+					copy(compact, ss.Seenlist)
+					ss.Seenlist = compact
+				}
+
+				ss.mu.Unlock()
+
+				//发送ACK回执信息
+				err = sendAckMes(toUsermes, ss.UserId, ss.UserName, ss.Conn)
+				if err != nil {
+					fmt.Println("sendAckmes err=", err)
 				}
 			}
 		}
@@ -396,7 +421,48 @@ func (ss *Session) readloop() {
 		}
 
 		ss.mu.Unlock()
+
 	}
+}
+
+// 用来发送私聊回执信息
+func sendAckMes(ToUserTrsMes message.SmsToUserTransferMes, formId int, formName string, conn net.Conn) (err error) {
+	//插入回执信息函数
+	var mes message.Message
+	mes.Type = message.SmsAckMesType
+
+	ackmes := message.SmsAckMes{
+		FromUserId:   formId,
+		FromUserName: formName,
+		ToUserId:     ToUserTrsMes.UserId,
+		ToUserName:   ToUserTrsMes.UserName,
+
+		MessageId: ToUserTrsMes.MessageId,
+	}
+
+	data, err := json.Marshal(ackmes)
+	if err != nil {
+		fmt.Println("marshal ackmes err=", err)
+		return nil
+	}
+
+	mes.Data = string(data)
+
+	data, err = json.Marshal(mes)
+	if err != nil {
+		fmt.Println("marshal mes err=", err)
+		return nil
+	}
+
+	tf := utils.Transfer{
+		Conn: conn,
+	}
+	err = tf.WritePkg(data)
+	if err != nil {
+		fmt.Println("writePkg data err=", err)
+		return
+	}
+	return
 }
 
 // 复制一份消息列表

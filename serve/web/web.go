@@ -15,6 +15,8 @@ import (
 	"github.com/ah233332/TalkMesh/common/utils"
 )
 
+const maxseen = 1000
+
 // 编译器指令
 //
 //go:embed static
@@ -159,6 +161,9 @@ func login(w http.ResponseWriter, r *http.Request) {
 		Users:    users,
 		Pending:  make(map[string]*pendingMes),
 		Reported: make(map[string]bool),
+
+		Seen:     make(map[string]bool),
+		Seenlist: make([]string, 0, maxseen),
 	}
 
 	//登录成功
