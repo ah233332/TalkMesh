@@ -187,7 +187,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 	//开启心跳协程
 	go ss.sendping()
 
-	http.SetCookie(w, &http.Cookie{Name: "sid", Value: sid, Path: "/"})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "sid",
+		Value:    sid,
+		Path:     "/",
+		HttpOnly: true,
+	})
 	//返回一个“请去这个地址”的响应,浏览器收到后自动再请求一次
 	//它不执行目标页面的代码
 	http.Redirect(w, r, "/chat", http.StatusSeeOther)
@@ -204,7 +209,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.FormValue("userId"))
 	name := r.FormValue("userName")
 	pwd := r.FormValue("userPwd")
-	if err != nil || id <= 0 || name == "" || pwd == "" {
+	if err != nil || id <= 0 || name == "" || pwd == "" || len(pwd) < 6 || len(pwd) > 30 {
 		fmt.Fprint(w, "用户ID必须是正整数，用户名和密码不能为空，<a href=\"/register\">返回</a>")
 		return
 	}
@@ -605,6 +610,8 @@ func logout(w http.ResponseWriter, r *http.Request) {
 		Value:  "",
 		Path:   "/",
 		MaxAge: -1,
+
+		HttpOnly: true,
 	})
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)

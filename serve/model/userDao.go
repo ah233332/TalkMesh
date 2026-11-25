@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ah233332/TalkMesh/common/message"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gomodule/redigo/redis"
 )
@@ -65,7 +66,8 @@ func (ud *UserDao) Login(userId int, userPwd string) (user *message.User, err er
 	}
 
 	//这时证明这个用户是获取到了，下一步判断密码
-	if user.UserPwd != userPwd {
+	err = bcrypt.CompareHashAndPassword([]byte(user.UserPwd), []byte(userPwd))
+	if err != nil {
 		err = ERROR_USER_PWD
 		return
 	}
@@ -74,7 +76,7 @@ func (ud *UserDao) Login(userId int, userPwd string) (user *message.User, err er
 
 }
 
-func (ud *UserDao) Register(user *message.User) (err error) {
+func (ud *UserDao) Register(user *message.User, pwdhash []byte) (err error) {
 	conn := ud.Pool.Get()
 	defer conn.Close()
 
@@ -87,7 +89,7 @@ func (ud *UserDao) Register(user *message.User) (err error) {
 		//还返回了找到的已被注册的用户实例
 	case ERROR_USER_NOTEXISTS:
 		//可以进行注册
-
+		user.UserPwd = string(pwdhash)
 		data, err := json.Marshal(user)
 		if err != nil {
 			fmt.Println("marshal newuser err=", err)

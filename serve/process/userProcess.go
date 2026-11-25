@@ -11,6 +11,7 @@ import (
 	"github.com/ah233332/TalkMesh/common/utils"
 	"github.com/ah233332/TalkMesh/serve/model"
 	"github.com/gomodule/redigo/redis"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserProcess struct {
@@ -129,18 +130,25 @@ func (up *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 	var registerResMesData message.RegisterResMes
 
 	//3.进行函数操作
-	if registerMes.User.UserId <= 0 || registerMes.User.UserPwd == "" || registerMes.User.UserPwd == "0" || registerMes.User.UserName == "" {
+	if registerMes.User.UserId <= 0 || registerMes.User.UserPwd == "" || registerMes.User.UserPwd == "0" || registerMes.User.UserName == "" ||
+		len(registerMes.User.UserPwd) < 6 || len(registerMes.User.UserPwd) > 30 {
 		registerResMesData.Code = 401
 		registerResMesData.Error = "用户ID必须为正数，密码和用户名不能为空"
 		// 这里不要 return，下面还要把 401 发回客户端
 	} else {
-		err = model.MyUserDao.Register(&registerMes.User)
+		//将密码进行哈希处理
+		hashpwd, err := bcrypt.GenerateFromPassword([]byte(registerMes.User.UserPwd), bcrypt.DefaultCost)
+		if err != nil {
+			fmt.Println("密码哈希处理错误:", err)
+		} else {
+			err = model.MyUserDao.Register(&registerMes.User, hashpwd)
+		}
 
 		switch err {
 		case nil:
 			registerResMesData.Code = 200 //表示注册成功
 			fmt.Println("注册成功！！！")
-			fmt.Printf("您的id=%d,Name=%s,Pwd=%s\n", registerMes.User.UserId, registerMes.User.UserName, registerMes.User.UserPwd)
+			fmt.Printf("您的id=%d,Name=%s\n", registerMes.User.UserId, registerMes.User.UserName)
 		case model.ERROR_USER_EXISTS:
 			registerResMesData.Code = 400 //表示注册ID被占用
 			registerResMesData.Error = err.Error()
