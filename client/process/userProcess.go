@@ -124,8 +124,11 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 // 任一连接、序列化、发送或响应解析步骤失败时都会返回对应的 err。
 func (up *UserProcess) Register(userId int, userPwd string, userName string) (err error) {
 	//0.先判断用户要注册的信息是否合法
-	if userId <= 0 || userName == "" || userPwd == "" || userPwd == "0" {
+	if userId <= 0 || userName == "" {
 		fmt.Println("注册信息不合法，请重新输入")
+		return
+	} else if userPwd == "" || userPwd == "0" || len(userPwd) < 6 || len(userPwd) > 30 {
+		fmt.Println("密码信息不合法，请重新设置密码")
 		return
 	}
 
