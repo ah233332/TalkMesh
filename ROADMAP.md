@@ -81,8 +81,8 @@
 ## 安全
 
 - [x] 服务端用连接自身的身份（`UserId` / `UserName`）作为发送者，忽略消息里伪造的身份
-- [ ] 密码改为 bcrypt 哈希存储
-- [ ] Cookie 加 `HttpOnly` / `Secure`
+- [x] 密码改为 bcrypt 哈希存储
+- [x] Cookie 加 `HttpOnly`（`Secure` 待 HTTPS 部署后开启）
 - [ ] 登录/注册接口限流
 - [ ] （可选）TLS 加密传输
 
