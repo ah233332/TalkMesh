@@ -26,6 +26,8 @@ type Message struct {
 type LoginMes struct {
 	UserId  int    `json:"userId"`  //用户ID
 	UserPwd string `json:"userPwd"` //用户密码
+
+	ClientIP string `json:"clientIp"`
 }
 
 // 登录返回信息
@@ -35,6 +37,7 @@ type LoginResMes struct {
 	Error string `json:"error"` //错误信息
 	//500表示用户未注册 200表示登录成功
 	//403密码错误 505未知错误
+	//429表示登录过于频繁
 }
 
 // 注册信息

@@ -104,3 +104,11 @@ func (t *Transfer) WritePkg(data []byte) (err error) {
 	}
 	return
 }
+
+func IPFromAddr(addr string) string {
+	ip, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	return ip
+}
