@@ -95,7 +95,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var mes message.Message
 	mes.Type = message.LoginMesType
 
-	loginMes := message.LoginMes{UserId: id, UserPwd: pwd}
+	loginMes := message.LoginMes{
+		UserId:  id,
+		UserPwd: pwd,
+
+		ClientIP: utils.IPFromAddr(r.RemoteAddr),
+	}
 	data, err := json.Marshal(loginMes)
 	if err != nil {
 		fmt.Fprintf(w, "序列化失败: %v", err)
@@ -130,6 +135,12 @@ func login(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal([]byte(resMes.Data), &res); err != nil {
 		fmt.Fprintf(w, "解析响应失败: %v", err)
 		conn.Close()
+		return
+	}
+
+	if res.Code == 429 {
+		conn.Close()
+		http.Error(w, "登录过于频繁，请稍后再试", http.StatusTooManyRequests)
 		return
 	}
 

@@ -32,51 +32,100 @@ func (up *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 		return
 	}
 
+	var loginResMesData message.LoginResMes
+
+	//取出网页端或者up.conn的ip地址
+	ip := loginmes.ClientIP
+	if ip == "" && up.Conn != nil {
+		ip = utils.IPFromAddr(up.Conn.RemoteAddr().String())
+	}
+
+	//按照ip判断登录是否过于频繁
+	if !allowed(ip) {
+		//不允许连续登录
+		loginResMesData.Code = 429
+		loginResMesData.Error = "登录过于频繁"
+		err = sendLoginResMes(up.Conn, loginResMesData)
+		if err != nil {
+			fmt.Println("sendloginResmes err=", err)
+			return
+		}
+	} else {
+		//需要到redis数据库去验证登录
+		user, err := model.MyUserDao.Login(loginmes.UserId, loginmes.UserPwd)
+
+		if err != nil {
+			//校验失败
+			switch err {
+			case model.ERROR_USER_PWD:
+				loginResMesData.Code = 403 //密码错误
+				loginResMesData.Error = err.Error()
+				//记录同一ip登录失败次数
+				recordFail(ip)
+			case model.ERROR_USER_NOTEXISTS:
+				loginResMesData.Code = 500 //用户不存在
+				loginResMesData.Error = err.Error()
+				//记录同一ip登录失败次数
+				recordFail(ip)
+			default:
+				loginResMesData.Code = 505 //未知错误
+				loginResMesData.Error = "未定义的错误"
+			}
+
+			err = sendLoginResMes(up.Conn, loginResMesData)
+			if err != nil {
+				fmt.Println("sendloginResmes err=", err)
+				return err
+			}
+		} else {
+			//校验成功
+			loginResMesData.Code = 200 //登录成功
+
+			//0.清空同一ip登录失败记录
+			clearFails(ip)
+
+			//1.登陆成功后的用户放入userMgr中
+			up.UserId = user.UserId
+			up.UserName = user.UserName
+			userMgr.AddOnlineUser(up)
+
+			//2.把自己上线的信息发送给其他人
+			up.NotifyOtherOnlineUser(loginmes.UserId, message.UserOnline, up.UserName)
+
+			//3.把当前在线用户，全都放入loginResMes.UsersId
+			//遍历UserMgr.onlineUsers的副本
+			for _, up := range userMgr.Snapshot() {
+				loginResMesData.Users = append(loginResMesData.Users, message.User{
+					UserId:     up.UserId,
+					UserName:   up.UserName,
+					UserStatus: message.UserOnline,
+				})
+			}
+
+			//4.发送登录响应信息
+			err = sendLoginResMes(up.Conn, loginResMesData)
+			if err != nil {
+				fmt.Println("sendloginResmes err=", err)
+				return err
+			}
+
+			//5.处理离线消息
+			//登录成功时，才推送离线消息
+			if loginResMesData.Code == 200 {
+				up.RangeOffLines()
+			}
+		}
+	}
+
+	return
+
+}
+func sendLoginResMes(conn net.Conn, resmes message.LoginResMes) (err error) {
 	//声明返回信息,并赋值
 	var loginResMes message.Message
 	loginResMes.Type = message.LoginResMesType
 
-	var loginResMesData message.LoginResMes
-
-	//需要到redis数据库去验证登录
-	user, err := model.MyUserDao.Login(loginmes.UserId, loginmes.UserPwd)
-
-	if err != nil {
-		switch err {
-		case model.ERROR_USER_PWD:
-			loginResMesData.Code = 403 //密码错误
-			loginResMesData.Error = err.Error()
-		case model.ERROR_USER_NOTEXISTS:
-			loginResMesData.Code = 500 //用户不存在
-			loginResMesData.Error = err.Error()
-		default:
-			loginResMesData.Code = 505 //未知错误
-			loginResMesData.Error = "未定义的错误"
-		}
-	} else {
-		loginResMesData.Code = 200 //登录成功
-
-		//1.登陆成功后的用户放入userMgr中
-		up.UserId = user.UserId
-		up.UserName = user.UserName
-		userMgr.AddOnlineUser(up)
-
-		//2.把自己上线的信息发送给其他人
-		up.NotifyOtherOnlineUser(loginmes.UserId, message.UserOnline, up.UserName)
-
-		//3.把当前在线用户，全都放入loginResMes.UsersId
-		//遍历UserMgr.onlineUsers的副本
-		for _, up := range userMgr.Snapshot() {
-			loginResMesData.Users = append(loginResMesData.Users, message.User{
-				UserId:     up.UserId,
-				UserName:   up.UserName,
-				UserStatus: message.UserOnline,
-			})
-		}
-
-	}
-
-	data, err := json.Marshal(loginResMesData)
+	data, err := json.Marshal(resmes)
 	if err != nil {
 		fmt.Println("marshal loginResMesData err=", err)
 		return
@@ -95,7 +144,7 @@ func (up *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 	//此时data就是要发送出的内容
 
 	tf := &utils.Transfer{
-		Conn: up.Conn,
+		Conn: conn,
 	}
 	//发送data返回到客户端
 	err = tf.WritePkg(data)
@@ -104,14 +153,7 @@ func (up *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 		return
 	}
 
-	//4.处理离线消息
-	//登录成功时，才推送离线消息
-	if loginResMesData.Code == 200 {
-		up.RangeOffLines()
-	}
-
 	return
-
 }
 
 func (up *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
