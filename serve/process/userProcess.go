@@ -122,23 +122,9 @@ func (up *UserProcess) ServerProcessLogin(mes *message.Message) (err error) {
 }
 func sendLoginResMes(conn net.Conn, resmes message.LoginResMes) (err error) {
 	//声明返回信息,并赋值
-	var loginResMes message.Message
-	loginResMes.Type = message.LoginResMesType
-
-	data, err := json.Marshal(resmes)
+	data, err := utils.BuildPkg(message.LoginResMesType, resmes)
 	if err != nil {
-		fmt.Println("marshal loginResMesData err=", err)
-		return
-	}
-	//data为序列化之后的loginresmesdata
-
-	loginResMes.Data = string(data)
-	//loginResMes赋值完成，准备进行序列化发送
-
-	//返回信息序列化
-	data, err = json.Marshal(loginResMes)
-	if err != nil {
-		fmt.Println("marshal loginResMes err=", err)
+		fmt.Println("bulidpkg loginresmes err=", err)
 		return
 	}
 	//此时data就是要发送出的内容
@@ -166,9 +152,6 @@ func (up *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 	}
 
 	//2.设置好ResMes信息
-	var registerResMes message.Message
-	registerResMes.Type = message.RegisterResMesType
-
 	var registerResMesData message.RegisterResMes
 
 	//3.进行函数操作
@@ -201,17 +184,9 @@ func (up *UserProcess) ServerProcessRegister(mes *message.Message) (err error) {
 	}
 
 	//4.序列化返回的信息并发送到客户端
-	data, err := json.Marshal(registerResMesData)
+	data, err := utils.BuildPkg(message.RegisterResMesType, registerResMesData)
 	if err != nil {
-		fmt.Println("marshal registerResMesData err=", err)
-		return
-	}
-	registerResMes.Data = string(data)
-	//registerResMes赋值完毕，准备序列化
-
-	data, err = json.Marshal(registerResMes)
-	if err != nil {
-		fmt.Println("marshal registerResMes err=", err)
+		fmt.Println("bulidpkg registerresmes err=", err)
 		return
 	}
 	//此时data就是准备发送的内容
@@ -307,26 +282,15 @@ func (up *UserProcess) serverNotifyOther(userId int, statue int, userName string
 // 用来服务serverNotifyOther的函数方法，
 // 主要功能是打包通知其他人上线或下线等状态的信息，避免重复打包
 func (up *UserProcess) creatNotifyMes(userId int, statue int, userName string) (data []byte, err error) {
-	var mes message.Message
-	mes.Type = message.NotifyUserStatusMesType
-
 	var notifyUserStatusMes message.NotifyUserStatusMes
 	notifyUserStatusMes.UserId = userId
 	notifyUserStatusMes.Status = statue
 	notifyUserStatusMes.UserName = userName
 
 	//将notifyUserStatusMes序列化
-	data, err = json.Marshal(notifyUserStatusMes)
+	data, err = utils.BuildPkg(message.NotifyUserStatusMesType, notifyUserStatusMes)
 	if err != nil {
-		fmt.Println("marshal notifyUserStatusMes err=", err)
-		return
-	}
-
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal mes err=", err)
+		fmt.Println("bulidpkg notifyuserstatusmes err=", err)
 		return
 	}
 	return

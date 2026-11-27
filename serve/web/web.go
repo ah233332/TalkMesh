@@ -92,24 +92,13 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. 组 LoginMes
-	var mes message.Message
-	mes.Type = message.LoginMesType
-
 	loginMes := message.LoginMes{
 		UserId:  id,
 		UserPwd: pwd,
 
 		ClientIP: utils.IPFromAddr(r.RemoteAddr),
 	}
-	data, err := json.Marshal(loginMes)
-	if err != nil {
-		fmt.Fprintf(w, "序列化失败: %v", err)
-		conn.Close()
-		return
-	}
-	mes.Data = string(data)
-
-	pkg, err := json.Marshal(mes)
+	pkg, err := utils.BuildPkg(message.LoginMesType, loginMes)
 	if err != nil {
 		fmt.Fprintf(w, "序列化失败: %v", err)
 		conn.Close()
@@ -239,14 +228,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 			UserPwd:  pwd,
 		},
 	}
-	data, err := json.Marshal(regMes)
-	if err != nil {
-		fmt.Fprintf(w, "序列化失败: %v", err)
-		return
-	}
-
-	mes := message.Message{Type: message.RegisterMesType, Data: string(data)}
-	pkg, err := json.Marshal(mes)
+	pkg, err := utils.BuildPkg(message.RegisterMesType, regMes)
 	if err != nil {
 		fmt.Fprintf(w, "序列化失败: %v", err)
 		return
@@ -472,8 +454,6 @@ func sendall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//封装群发信息
-	var mes message.Message
-	mes.Type = message.SmsGPMessageType
 	groupmes := message.SmsGPMessage{
 		UserId:     session.UserId,
 		UserName:   session.UserName,
@@ -482,18 +462,9 @@ func sendall(w http.ResponseWriter, r *http.Request) {
 
 		MessageId: utils.CreatMesId(session.UserId),
 	}
-	data, err := json.Marshal(groupmes)
+	data, err := utils.BuildPkg(message.SmsGPMessageType, groupmes)
 	if err != nil {
-		fmt.Println("marshal groupmes err=", err)
-		sendReply(w, r, http.StatusInternalServerError, "/chat")
-		return
-	}
-
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal mes err=", err)
+		fmt.Println("bulidpkg groupmes err=", err)
 		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}
@@ -546,8 +517,6 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//封装私聊信息
-	var mes message.Message
-	mes.Type = message.SmsToUserMesType
 	toOneMes := message.SmsToUserMes{
 		UserId:     session.UserId,
 		UserName:   session.UserName,
@@ -559,18 +528,9 @@ func sendone(w http.ResponseWriter, r *http.Request) {
 		MessageId: utils.CreatMesId(session.UserId),
 	}
 
-	data, err := json.Marshal(toOneMes)
+	data, err := utils.BuildPkg(message.SmsToUserMesType, toOneMes)
 	if err != nil {
-		fmt.Println("marshal toOneMes err=", err)
-		sendReply(w, r, http.StatusInternalServerError, "/chat")
-		return
-	}
-
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal mes err=", err)
+		fmt.Println("bulidpkg toonemes err=", err)
 		sendReply(w, r, http.StatusInternalServerError, "/chat")
 		return
 	}

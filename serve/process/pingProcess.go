@@ -15,7 +15,6 @@ type PingProcess struct {
 
 // 接收处理客户端发送的pingMes心跳，并返回pongMes信息
 func (pp *PingProcess) ServePing(mes *message.Message) error {
-	mes.Type = message.PongMesType
 	var pingMes message.PingMes
 
 	err := json.Unmarshal([]byte(mes.Data), &pingMes)
@@ -26,16 +25,9 @@ func (pp *PingProcess) ServePing(mes *message.Message) error {
 	var pongMes message.PongMes
 	pongMes.Timestamp = pingMes.Timestamp
 
-	data, err := json.Marshal(pongMes)
+	data, err := utils.BuildPkg(message.PongMesType, pongMes)
 	if err != nil {
-		fmt.Println("marshal pongmes err=", err)
-		return err
-	}
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal mes err=", err)
+		fmt.Println("bulidpkg pongmes err=", err)
 		return err
 	}
 	//此时data就是可直接发送的pongMes

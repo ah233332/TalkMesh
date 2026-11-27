@@ -46,9 +46,6 @@ func (ap *AckProcess) ServeAckMes(mes *message.Message) {
 }
 
 func (ap *AckProcess) creatAckTrsMes(ackmes message.SmsAckMes, toup *UserProcess) []byte {
-	var mes message.Message
-	mes.Type = message.SmsAckTrsMesType
-
 	acktfsmes := message.SmsAckTrsMes{
 		FromUserId:   ap.UserId,
 		FromUserName: ap.UserName,
@@ -59,17 +56,9 @@ func (ap *AckProcess) creatAckTrsMes(ackmes message.SmsAckMes, toup *UserProcess
 		MessageId: ackmes.MessageId,
 	}
 
-	data, err := json.Marshal(acktfsmes)
+	data, err := utils.BuildPkg(message.SmsAckTrsMesType, acktfsmes)
 	if err != nil {
-		fmt.Println("marshal acktfsmes err=", err)
-		return nil
-	}
-
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal mes err=", err)
+		fmt.Println("bulid smsacktrsmes err=", err)
 		return nil
 	}
 	return data

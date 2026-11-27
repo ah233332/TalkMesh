@@ -217,22 +217,12 @@ func (ss *Session) sendping() {
 
 // 组装pingmes信息
 func buildpingMes() (data []byte, err error) {
-	var mes message.Message
-	mes.Type = message.PingMesType
-
 	var pingmes message.PingMes
 	pingmes.Timestamp = time.Now().UnixMilli()
 
-	data, err = json.Marshal(pingmes)
+	data, err = utils.BuildPkg(message.PingMesType, pingmes)
 	if err != nil {
-		fmt.Println("marshal err=", err)
-		return nil, err
-	}
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal err=", err)
+		fmt.Println("bulidpkg pingmes err=", err)
 		return nil, err
 	}
 
@@ -428,9 +418,6 @@ func (ss *Session) readloop() {
 // 用来发送私聊回执信息
 func sendAckMes(ToUserTrsMes message.SmsToUserTransferMes, formId int, formName string, conn net.Conn) (err error) {
 	//插入回执信息函数
-	var mes message.Message
-	mes.Type = message.SmsAckMesType
-
 	ackmes := message.SmsAckMes{
 		FromUserId:   formId,
 		FromUserName: formName,
@@ -440,17 +427,9 @@ func sendAckMes(ToUserTrsMes message.SmsToUserTransferMes, formId int, formName 
 		MessageId: ToUserTrsMes.MessageId,
 	}
 
-	data, err := json.Marshal(ackmes)
+	data, err := utils.BuildPkg(message.SmsAckMesType, ackmes)
 	if err != nil {
-		fmt.Println("marshal ackmes err=", err)
-		return nil
-	}
-
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal mes err=", err)
+		fmt.Println("bulidpkg ackmes err=", err)
 		return nil
 	}
 
