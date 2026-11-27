@@ -105,6 +105,24 @@ func (t *Transfer) WritePkg(data []byte) (err error) {
 	return
 }
 
+// 制作包包，返回直接可发送的data
+func BuildPkg(mesType string, payload any) ([]byte, error) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal payload: %w", err)
+	}
+	mes := message.Message{
+		Type: mesType,
+		Data: string(data),
+	}
+	data, err = json.Marshal(mes)
+	if err != nil {
+		return nil, fmt.Errorf("marshal mes: %w", err)
+	}
+	return data, err
+}
+
+// 切割分离出IP地址
 func IPFromAddr(addr string) string {
 	ip, _, err := net.SplitHostPort(addr)
 	if err != nil {
