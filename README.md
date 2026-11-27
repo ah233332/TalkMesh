@@ -51,7 +51,7 @@ TalkMesh/
 │   └── process/            # 登录、注册、群聊、私聊、心跳
 ├── common/
 │   ├── message/            # 协议结构体
-│   └── utils/              # 长度头 + JSON 的 ReadPkg / WritePkg
+│   └── utils/              # ReadPkg / WritePkg，BuildPkg 统一组包
 ├── serve/
 │   ├── main/               # 启动 TCP 8899 + HTTP 8900、路由
 │   ├── process/            # 登录、在线表、群聊/私聊、离线、心跳、登录限流
@@ -122,6 +122,8 @@ type Message struct {
 | `PingMes` / `PongMes` | 双向 | 心跳 |
 
 群聊、私聊消息都带 `messageId`（格式 `用户ID-序号`），由发送方生成，服务端原样转发；回执带回这个 ID，用来对应“哪一条消息被收到”。
+
+代码里统一用 `utils.BuildPkg(msgType, payload)` 组装外层 `Message`，返回的字节可以直接交给 `WritePkg`，不需要在每个业务函数里手写两次 `json.Marshal`。
 
 协议细节见 `common/message/message.go`。
 
