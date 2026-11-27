@@ -28,26 +28,14 @@ func (up *UserProcess) Login(userId int, userPwd string) (err error) {
 	defer conn.Close()
 
 	//2.将mes的数据填完整
-	var mes message.Message
-	mes.Type = message.LoginMesType
-
 	var loginMex message.LoginMes
 	loginMex.UserId = userId
 	loginMex.UserPwd = userPwd
 
 	//将LoginMex结构体序列化之后再填入mes中
-	data, err := json.Marshal(loginMex)
+	data, err := utils.BuildPkg(message.LoginMesType, loginMex)
 	if err != nil {
-		fmt.Println("Marshal err=", err)
-		return
-	}
-
-	mes.Data = string(data)
-
-	//3.将mes序列化
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("Marshal err=", err)
+		fmt.Println("bulidpkg loginmes err=", err)
 		return
 	}
 	//data就是要发送的信息
@@ -143,27 +131,15 @@ func (up *UserProcess) Register(userId int, userPwd string, userName string) (er
 	defer conn.Close()
 
 	//2.将mes的数据填完整
-	var mes message.Message
-	mes.Type = message.RegisterMesType
-
 	var registerMex message.RegisterMes
 	registerMex.User.UserId = userId
 	registerMex.User.UserPwd = userPwd
 	registerMex.User.UserName = userName
 
 	//将registerMex结构体序列化之后再填入mes中
-	data, err := json.Marshal(registerMex)
+	data, err := utils.BuildPkg(message.RegisterMesType, registerMex)
 	if err != nil {
-		fmt.Println("Marshal err=", err)
-		return
-	}
-
-	mes.Data = string(data)
-
-	//3.将mes序列化
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("Marshal err=", err)
+		fmt.Println("bulidpkg registermes err=", err)
 		return
 	}
 	//data就是要发送的信息

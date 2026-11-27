@@ -1,10 +1,10 @@
 package process
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/ah233332/TalkMesh/common/message"
+	"github.com/ah233332/TalkMesh/common/utils"
 )
 
 type AckProcess struct {
@@ -12,9 +12,6 @@ type AckProcess struct {
 
 // formId B 谁收到的私信(自己)  toId A 回执给谁(私信发送者)
 func CreatAckMes(mesID string, formId int, fromName string, toId int, toName string) []byte {
-	var mes message.Message
-	mes.Type = message.SmsAckMesType
-
 	ackmes := message.SmsAckMes{
 		FromUserId:   formId,
 		FromUserName: fromName,
@@ -24,17 +21,9 @@ func CreatAckMes(mesID string, formId int, fromName string, toId int, toName str
 		MessageId: mesID,
 	}
 
-	data, err := json.Marshal(ackmes)
+	data, err := utils.BuildPkg(message.SmsAckMesType, ackmes)
 	if err != nil {
-		fmt.Println("marshal ackmes err=", err)
-		return nil
-	}
-
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal mes err=", err)
+		fmt.Println("bulidpkg ackmes err=", err)
 		return nil
 	}
 

@@ -17,9 +17,6 @@ type SmsProcess struct {
 // 群发消息的函数方法
 func (sp *SmsProcess) SendGroupMes(content string) (err error) {
 	//封装一个可发送的Mes信息
-	var mes message.Message
-	mes.Type = message.SmsGPMessageType
-
 	var smsMes = message.SmsGPMessage{
 		Content:    content,
 		UserId:     sp.UserId,
@@ -29,17 +26,9 @@ func (sp *SmsProcess) SendGroupMes(content string) (err error) {
 		MessageId: utils.CreatMesId(sp.UserId),
 	}
 
-	data, err := json.Marshal(smsMes)
+	data, err := utils.BuildPkg(message.SmsGPMessageType, smsMes)
 	if err != nil {
-		fmt.Println("marshal smsMes err=", err)
-		return
-	}
-
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal mes err=", err)
+		fmt.Println("bulidpkg smsgpmes err=", err)
 		return
 	}
 	//此时data就是可发送的消息
@@ -59,9 +48,6 @@ func (sp *SmsProcess) SendGroupMes(content string) (err error) {
 // 私发消息的函数方法
 func (sp *SmsProcess) SendToUserMes(toUserId int, content string) {
 	//封装一个可发送的私聊请求
-	var mes message.Message
-	mes.Type = message.SmsToUserMesType
-
 	//消息id
 	messageID := utils.CreatMesId(sp.UserId)
 
@@ -75,17 +61,9 @@ func (sp *SmsProcess) SendToUserMes(toUserId int, content string) {
 		MessageId: messageID,
 	}
 
-	data, err := json.Marshal(smstoUserMes)
+	data, err := utils.BuildPkg(message.SmsToUserMesType, smstoUserMes)
 	if err != nil {
-		fmt.Println("marshal smstoUserMes err=", err)
-		return
-	}
-
-	mes.Data = string(data)
-
-	data, err = json.Marshal(mes)
-	if err != nil {
-		fmt.Println("marshal Mes err=", err)
+		fmt.Println("bulidpkg smstousermes err=", err)
 		return
 	}
 	//data为可直接发送的私聊请求
